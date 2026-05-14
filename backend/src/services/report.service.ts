@@ -1,40 +1,10 @@
 import { randomUUID } from "crypto";
 import { generateAiNarrative } from "./aiReport.service";
 import { generateEventOpportunities } from "./events.service";
-import { promises as fs } from "fs";
-import path from "path";
 import { researchLocalMarket } from "./firecrawl.service";
 import { generateOpportunityReport } from "./scoring.service";
+import { getDb } from "./db.service";
 import type { FreeReportRequest, ReportActivity } from "../types/truckflow";
-
-const reportsFile = path.resolve(process.cwd(), "data", "reports.json");
-
-async function ensureReportsFile() {
-  await fs.mkdir(path.dirname(reportsFile), { recursive: true });
-
-  try {
-    await fs.access(reportsFile);
-  } catch {
-    await fs.writeFile(reportsFile, "[]\n", "utf8");
-  }
-}
-
-async function readReports() {
-  await ensureReportsFile();
-  const raw = await fs.readFile(reportsFile, "utf8");
-
-  try {
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed as ReportActivity[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-async function writeReports(reports: ReportActivity[]) {
-  await ensureReportsFile();
-  await fs.writeFile(reportsFile, `${JSON.stringify(reports, null, 2)}\n`, "utf8");
-}
 
 export async function createFreeReport(
   input: FreeReportRequest,
@@ -51,34 +21,79 @@ export async function createFreeReport(
   report.flowEvents = await generateEventOpportunities({
     city: input.city,
     foodType: input.foodType,
-    research
+    research,
   });
 
   report.aiNarrative = await generateAiNarrative({
     city: input.city,
     foodType: input.foodType,
     report,
-    research
+    research,
   });
 
-  const reports = await readReports();
-
-  reports.push({
+  const activity: ReportActivity = {
     id: randomUUID(),
     city: input.city,
     foodType: input.foodType,
     report,
     createdAt: new Date().toISOString(),
     userAgent: meta.userAgent,
-    ip: meta.ip
-  });
+    ip: meta.ip,
+  };
 
-  await writeReports(reports);
+  getDb()
+    .prepare(`
+      INSERT INTO reports (
+        id, city, foodType, reportJson, createdAt, userAgent, ip
+      ) VALUES (
+        @id, @city, @foodType, @reportJson, @createdAt, @userAgent, @ip
+      )
+    `)
+    .run({
+      id: activity.id,
+      city: activity.city,
+      foodType: activity.foodType,
+      reportJson: JSON.stringify(activity.report),
+      createdAt: activity.createdAt,
+      userAgent: activity.userAgent || null,
+      ip: activity.ip || null,
+    });
 
   return report;
 }
 
+type ReportRow = {
+  id: string;
+  city: string;
+  foodType: string;
+  reportJson: string;
+  createdAt: string;
+  userAgent: string | null;
+  ip: string | null;
+};
+
 export async function getReports() {
-  const reports = await readReports();
-  return reports.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  const rows = getDb()
+    .prepare(
+      "SELECT id, city, foodType, reportJson, createdAt, userAgent, ip FROM reports ORDER BY datetime(createdAt) DESC"
+    )
+    .all() as ReportRow[];
+
+  return rows.flatMap((row): ReportActivity[] => {
+    try {
+      return [
+        {
+          id: row.id,
+          city: row.city,
+          foodType: row.foodType,
+          report: JSON.parse(row.reportJson),
+          createdAt: row.createdAt,
+          userAgent: row.userAgent || undefined,
+          ip: row.ip || undefined,
+        },
+      ];
+    } catch {
+      return [];
+    }
+  });
 }

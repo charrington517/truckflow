@@ -92,3 +92,8 @@ The backup includes PM2 process snapshots for reference:
 pm2/pm2-jlist.json
 pm2/pm2-list.txt
 ```
+
+
+## SQLite runtime data
+
+TruckFlow now stores leads and report history in `/opt/truckflow/backend/data/truckflow.db`. Restore `truckflow.db` plus any matching `truckflow.db-wal` and `truckflow.db-shm` files from the same backup archive before restarting PM2.

@@ -7,6 +7,7 @@ export type LeadInput = {
 };
 
 export type Lead = LeadInput & {
+  id: string;
   createdAt: string;
 };
 

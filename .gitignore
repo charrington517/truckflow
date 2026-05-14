@@ -51,3 +51,7 @@ uploads/
 
 # local backups
 backups/
+backend/data/*.db
+backend/data/*.db-*
+backend/data/*.sqlite
+backend/data/*.sqlite-*

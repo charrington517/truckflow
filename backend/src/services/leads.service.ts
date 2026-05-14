@@ -1,60 +1,84 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import path from "node:path";
+import { randomUUID } from "node:crypto";
 import type { Lead, LeadInput, LeadResult } from "../types/lead";
+import { getDb } from "./db.service";
 
-const leadsFile = path.resolve(process.cwd(), "data", "leads.json");
+type LeadRow = {
+  id: string;
+  name: string | null;
+  email: string;
+  businessName: string | null;
+  city: string;
+  foodType: string;
+  createdAt: string;
+};
 
-async function ensureLeadsFile() {
-  await mkdir(path.dirname(leadsFile), { recursive: true });
-
-  try {
-    await readFile(leadsFile, "utf8");
-  } catch {
-    await writeFile(leadsFile, "[]", "utf8");
-  }
+function rowToLead(row: LeadRow): Lead {
+  return {
+    id: row.id,
+    name: row.name || undefined,
+    email: row.email,
+    businessName: row.businessName || undefined,
+    city: row.city,
+    foodType: row.foodType,
+    createdAt: row.createdAt,
+  };
 }
 
 export async function getLeads(): Promise<Lead[]> {
-  await ensureLeadsFile();
-  const raw = await readFile(leadsFile, "utf8");
+  const rows = getDb()
+    .prepare("SELECT id, name, email, businessName, city, foodType, createdAt FROM leads ORDER BY datetime(createdAt) DESC")
+    .all() as LeadRow[];
 
-  try {
-    const leads = JSON.parse(raw);
-    return Array.isArray(leads) ? leads : [];
-  } catch {
-    return [];
-  }
+  return rows.map(rowToLead);
 }
 
 export async function saveLead(input: LeadInput): Promise<LeadResult> {
-  const leads = await getLeads();
-  const normalizedEmail = input.email.trim().toLowerCase();
-  const duplicate = leads.find((lead) => lead.email.trim().toLowerCase() === normalizedEmail);
+  const email = input.email.trim().toLowerCase();
+  const existing = getDb()
+    .prepare("SELECT id, name, email, businessName, city, foodType, createdAt FROM leads WHERE email = ?")
+    .get(email) as LeadRow | undefined;
 
-  if (duplicate) {
+  if (existing) {
     return {
       success: true,
       message: "You are already on the TruckFlow early access list.",
-      duplicate: true
+      duplicate: true,
+      lead: rowToLead(existing),
     };
   }
 
   const lead: Lead = {
-    name: input.name?.trim() || undefined,
-    email: normalizedEmail,
-    businessName: input.businessName?.trim() || undefined,
-    city: input.city.trim(),
-    foodType: input.foodType.trim(),
-    createdAt: new Date().toISOString()
+    id: randomUUID(),
+    name: input.name,
+    email,
+    businessName: input.businessName,
+    city: input.city,
+    foodType: input.foodType,
+    createdAt: new Date().toISOString(),
   };
 
-  leads.push(lead);
-  await writeFile(leadsFile, `${JSON.stringify(leads, null, 2)}\n`, "utf8");
+  getDb()
+    .prepare(`
+      INSERT INTO leads (
+        id, name, email, businessName, city, foodType, createdAt
+      ) VALUES (
+        @id, @name, @email, @businessName, @city, @foodType, @createdAt
+      )
+    `)
+    .run({
+      id: lead.id,
+      name: lead.name || null,
+      email: lead.email,
+      businessName: lead.businessName || null,
+      city: lead.city,
+      foodType: lead.foodType,
+      createdAt: lead.createdAt,
+    });
 
   return {
     success: true,
     message: "You are on the TruckFlow early access list.",
     duplicate: false,
-    lead
+    lead,
   };
 }
