@@ -1,5 +1,5 @@
 import type { LeadPayload, LeadResponse, WaitlistLead } from "@/types/lead";
-import type { FlowEventsResult, FreeReport, ReportActivity } from "@/types/report";
+import type { FlowEventsResult, FreeReport, ReportActivity, ReportFeedback, ReportFeedbackPayload } from "@/types/report";
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://192.168.0.210:4000";
 
@@ -76,4 +76,30 @@ export function getWaitlistLeads(adminKey: string): Promise<WaitlistLead[]> {
 
 export function getReportHistory(adminKey: string): Promise<ReportActivity[]> {
   return fetchAdminResource<ReportActivity[]>("/api/reports", adminKey);
+}
+
+
+export function getReportFeedback(adminKey: string): Promise<ReportFeedback[]> {
+  return fetchAdminResource<ReportFeedback[]>("/api/reports/feedback", adminKey);
+}
+
+export async function submitReportFeedback(reportId: string, payload: ReportFeedbackPayload, adminKey: string): Promise<ReportFeedback> {
+  const response = await fetch(`${apiUrl}/api/reports/${reportId}/feedback`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-admin-key": adminKey
+    },
+    body: JSON.stringify(payload)
+  });
+
+  if (response.status === 401) {
+    throw new Error("Admin access denied. Check API key.");
+  }
+
+  if (!response.ok) {
+    throw new Error("Could not save accuracy feedback.");
+  }
+
+  return response.json() as Promise<ReportFeedback>;
 }

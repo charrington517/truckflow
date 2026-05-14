@@ -160,3 +160,28 @@ export type ReportActivity = {
   userAgent?: string;
   ip?: string;
 };
+
+
+export type ReportFeedbackIssueType =
+  | "inaccurate_location"
+  | "fake_specific_claim"
+  | "repetitive_answer"
+  | "weak_recommendation"
+  | "wrong_food_type"
+  | "missing_nearby_market"
+  | "other";
+
+export type ReportFeedback = {
+  id: string;
+  reportId: string;
+  rating?: number;
+  issueType?: ReportFeedbackIssueType;
+  notes?: string;
+  createdAt: string;
+};
+
+export type ReportFeedbackPayload = {
+  rating?: number;
+  issueType?: ReportFeedbackIssueType;
+  notes?: string;
+};

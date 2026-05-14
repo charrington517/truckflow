@@ -40,6 +40,18 @@ export function getDb() {
 
     CREATE INDEX IF NOT EXISTS idx_leads_created_at ON leads(createdAt);
     CREATE INDEX IF NOT EXISTS idx_reports_created_at ON reports(createdAt);
+
+    CREATE TABLE IF NOT EXISTS report_feedback (
+      id TEXT PRIMARY KEY,
+      reportId TEXT NOT NULL,
+      rating INTEGER,
+      issueType TEXT,
+      notes TEXT,
+      createdAt TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_report_feedback_created_at ON report_feedback(createdAt);
+    CREATE INDEX IF NOT EXISTS idx_report_feedback_report_id ON report_feedback(reportId);
   `);
 
   return db;
