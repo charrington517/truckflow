@@ -48,3 +48,6 @@ uploads/
 
 # local migration backups
 *-backup-*/
+
+# local backups
+backups/
