@@ -349,6 +349,42 @@ function FlowEventsSection({ report }: { report: FreeReport }) {
   );
 }
 
+function LocalDataChecks({ report }: { report: FreeReport }) {
+  const localData = report.localData;
+  if (!localData?.enabled) return null;
+
+  const labelFor = (queryType: string) => queryType.replaceAll("_", " ");
+
+  return (
+    <div className="mt-5 rounded-lg border border-primary/20 bg-background/60 p-5 dark:bg-black/20">
+      <div className="mb-4 flex flex-col justify-between gap-3 md:flex-row md:items-start">
+        <div>
+          <div className="mb-2 flex items-center gap-2">
+            <MapPinned className="h-4 w-4 text-primary" />
+            <p className="font-semibold">Local Data Checks</p>
+          </div>
+          <p className="text-sm leading-6 text-muted-foreground">{localData.summary}</p>
+        </div>
+        <Badge variant="outline">OpenStreetMap</Badge>
+      </div>
+      <div className="grid gap-3 md:grid-cols-2">
+        {localData.checks.map((check) => (
+          <div key={check.queryType} className="rounded-md border border-border bg-card p-4">
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <p className="text-sm font-black capitalize">{labelFor(check.queryType)}</p>
+              <Badge variant={check.resultCount > 0 ? "teal" : "secondary"}>{check.resultCount} found</Badge>
+            </div>
+            <p className="text-xs leading-5 text-muted-foreground">{check.summary}</p>
+            {check.topPlaces.length ? (
+              <p className="mt-2 truncate text-xs text-muted-foreground">Top: {check.topPlaces.slice(0, 3).map((place) => place.name).join(", ")}</p>
+            ) : null}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function StrategyBrief({ report }: { report: FreeReport }) {
   const narrative = report.aiNarrative;
 

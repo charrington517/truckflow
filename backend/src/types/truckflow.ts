@@ -2,6 +2,39 @@ export type DemandLevel = "low" | "medium" | "high";
 export type CompetitionLevel = "low" | "medium" | "high";
 export type EvidenceLevel = "verified" | "nearby" | "model" | "low_confidence";
 
+export type OsmQueryType =
+  | "brewery"
+  | "restaurant"
+  | "event_space"
+  | "park"
+  | "market"
+  | "industrial"
+  | "college"
+  | "tourism";
+
+export type LocalDataPlace = {
+  name: string;
+  type: string;
+  latitude: number;
+  longitude: number;
+  tags: Record<string, string>;
+  source: "openstreetmap";
+};
+
+export type LocalDataCheck = {
+  queryType: OsmQueryType;
+  resultCount: number;
+  topPlaces: LocalDataPlace[];
+  summary: string;
+};
+
+export type LocalDataResult = {
+  enabled: true;
+  sources: ["openstreetmap"];
+  checks: LocalDataCheck[];
+  summary: string;
+};
+
 export type HotspotLocation = {
   name: string;
   latitude: number;
@@ -104,6 +137,7 @@ export type FreeReport = {
   scores?: OpportunityScores;
   summary?: string;
   research?: MarketResearch;
+  localData?: LocalDataResult;
   aiNarrative?: AiNarrative;
   flowEvents?: FlowEventsResult;
 };

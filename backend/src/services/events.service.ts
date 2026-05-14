@@ -2,7 +2,7 @@ import { eventOpportunityProfiles } from "../data/eventOpportunityProfiles";
 import { findCityProfile } from "../data/cityProfiles";
 import { findFoodTypeProfile } from "../data/foodTypeProfiles";
 import { evidenceLabel, findLocalRealityProfile, type EvidenceLevel } from "../data/localRealityProfiles";
-import type { FlowEventsResult, MarketResearch } from "../types/truckflow";
+import type { FlowEventsResult, LocalDataResult, MarketResearch, OsmQueryType } from "../types/truckflow";
 
 type EventInput = {
   city: string;
@@ -10,6 +10,7 @@ type EventInput = {
   cityProfile?: ReturnType<typeof findCityProfile>;
   foodTypeProfile?: ReturnType<typeof findFoodTypeProfile>;
   research?: MarketResearch;
+  localData?: LocalDataResult;
 };
 
 const clamp = (value: number) => Math.max(0, Math.min(100, Math.round(value)));
@@ -34,7 +35,7 @@ function foodMatchScore(bestFoodTypes: string[], foodType: string) {
 
 function statusForScore(score: number, evidenceLevel: EvidenceLevel) {
   if (evidenceLevel === "verified") return "Source found - verify details";
-  if (evidenceLevel === "nearby") return "Nearby lead - verify fit";
+  if (evidenceLevel === "nearby") return "Nearby signal - verify opportunity";
   if (evidenceLevel === "low_confidence") return "Needs verification";
   if (score >= 84) return "Strong model fit - verify first";
   if (score >= 74) return "Worth researching";
@@ -62,9 +63,54 @@ function saferTitle(type: string, label: string, city: string, evidenceLevel: Ev
   }
 }
 
+function queryTypesForEvent(type: string): OsmQueryType[] {
+  switch (type) {
+    case "brewery_pop_up":
+      return ["brewery"];
+    case "tourist_market":
+      return ["tourism", "market"];
+    case "waterfront_event":
+      return ["tourism", "event_space", "park"];
+    case "college_event":
+      return ["college"];
+    case "office_lunch":
+      return ["industrial"];
+    case "farmers_market":
+    case "seasonal_vendor_call":
+      return ["market", "event_space"];
+    case "street_festival":
+    case "community_fair":
+    case "sports_event":
+      return ["event_space", "park"];
+    default:
+      return [];
+  }
+}
+
+function localDataCount(input: EventInput, queryTypes: OsmQueryType[]) {
+  return input.localData?.checks
+    .filter((check) => queryTypes.includes(check.queryType))
+    .reduce((sum, check) => sum + check.resultCount, 0) ?? 0;
+}
+
+function localDataPlaces(input: EventInput, queryTypes: OsmQueryType[]) {
+  return input.localData?.checks
+    .filter((check) => queryTypes.includes(check.queryType))
+    .flatMap((check) => check.topPlaces.map((place) => place.name))
+    .slice(0, 3) ?? [];
+}
+
 function evidenceForType(type: string, input: EventInput, hasLiveResearch: boolean): EvidenceLevel {
   const reality = findLocalRealityProfile(input.city);
   if (hasLiveResearch) return "verified";
+  const queryTypes = queryTypesForEvent(type);
+  const placeCount = localDataCount(input, queryTypes);
+  if (placeCount > 0) {
+    return "nearby";
+  }
+  if (["brewery_pop_up", "tourist_market", "waterfront_event", "college_event", "office_lunch"].includes(type)) {
+    return "low_confidence";
+  }
   if (reality.avoidUnverifiedTypes.includes(type)) {
     return reality.nearbyMarkets.length ? "nearby" : "low_confidence";
   }
@@ -74,7 +120,14 @@ function evidenceForType(type: string, input: EventInput, hasLiveResearch: boole
 
 function evidenceNotesForType(type: string, input: EventInput, evidenceLevel: EvidenceLevel) {
   const reality = findLocalRealityProfile(input.city);
+  const queryTypes = queryTypesForEvent(type);
+  const placeCount = localDataCount(input, queryTypes);
+  const places = localDataPlaces(input, queryTypes);
   const notes = [reality.researchDisabledNote];
+
+  if (queryTypes.length) {
+    notes.push(placeCount > 0 ? `OpenStreetMap found ${placeCount} supporting signal${placeCount === 1 ? "" : "s"}: ${places.join(", ")}.` : `OpenStreetMap found 0 supporting ${queryTypes.join("/")} signals nearby.`);
+  }
 
   if (evidenceLevel === "nearby") {
     notes.push(`No verified ${input.city} source is attached. Nearby opportunity may apply in ${reality.nearbyMarkets.slice(0, 2).join(" or ")}.`);
@@ -133,7 +186,7 @@ export async function generateEventOpportunities(input: EventInput): Promise<Flo
     const foodScore = foodMatchScore(profile.bestFoodTypes, foodTypeProfile.foodType === "food" ? input.foodType : foodTypeProfile.foodType);
     const ticketBonus = foodTypeProfile.averageTicketPotential * 0.08;
     let score = clamp(profile.averageOpportunityScore * 0.34 + traitScore * 0.36 + foodScore * 0.22 + ticketBonus);
-    const evidenceLevel = evidenceForType(profile.type, input, false);
+    const evidenceLevel = evidenceForType(profile.type, input, hasLiveResearch);
 
     if (realityProfile.favoredOpportunityTypes.includes(profile.type)) {
       score = clamp(score + 8);
@@ -147,7 +200,7 @@ export async function generateEventOpportunities(input: EventInput): Promise<Flo
 
     return {
       id: profile.type,
-      title: saferTitle(profile.type, profile.label, input.city, evidenceLevel, realityProfile.nearbyMarkets),
+      title: evidenceLevel === "verified" ? profile.label : saferTitle(profile.type, profile.label, input.city, evidenceLevel, realityProfile.nearbyMarkets),
       type: profile.type,
       score,
       status: statusForScore(score, evidenceLevel),

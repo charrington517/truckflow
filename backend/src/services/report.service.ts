@@ -2,6 +2,7 @@ import { randomUUID } from "crypto";
 import { generateAiNarrative } from "./aiReport.service";
 import { generateEventOpportunities } from "./events.service";
 import { researchLocalMarket } from "./firecrawl.service";
+import { getLocalDataChecks } from "./osm.service";
 import { generateOpportunityReport } from "./scoring.service";
 import { getDb } from "./db.service";
 import type { FreeReportRequest, ReportActivity } from "../types/truckflow";
@@ -11,7 +12,12 @@ export async function createFreeReport(
   meta: { userAgent?: string; ip?: string } = {}
 ) {
   const report = generateOpportunityReport(input);
-  const research = await researchLocalMarket(input);
+  const [research, localData] = await Promise.all([
+    researchLocalMarket(input),
+    getLocalDataChecks({ city: input.city })
+  ]);
+
+  report.localData = localData;
 
   report.research = research;
   if (research.enabled) {
@@ -22,6 +28,7 @@ export async function createFreeReport(
     city: input.city,
     foodType: input.foodType,
     research,
+    localData,
   });
 
   report.aiNarrative = await generateAiNarrative({
