@@ -2,7 +2,8 @@ import { eventOpportunityProfiles } from "../data/eventOpportunityProfiles";
 import { findCityProfile } from "../data/cityProfiles";
 import { findFoodTypeProfile } from "../data/foodTypeProfiles";
 import { evidenceLabel, findLocalRealityProfile, type EvidenceLevel } from "../data/localRealityProfiles";
-import type { FlowEventsResult, LocalDataResult, MarketResearch, OsmQueryType } from "../types/truckflow";
+import { suggestNearbyOpportunities } from "./nearbyMarkets.service";
+import type { FlowEventsResult, LocalDataResult, MarketResearch, NearbyExpansionResult, OsmQueryType } from "../types/truckflow";
 
 type EventInput = {
   city: string;
@@ -11,6 +12,7 @@ type EventInput = {
   foodTypeProfile?: ReturnType<typeof findFoodTypeProfile>;
   research?: MarketResearch;
   localData?: LocalDataResult;
+  nearbyExpansion?: NearbyExpansionResult;
 };
 
 const clamp = (value: number) => Math.max(0, Math.min(100, Math.round(value)));
@@ -175,11 +177,32 @@ function sourceBasedOpportunities(input: EventInput) {
   }));
 }
 
+function nearbyExpansionOpportunities(expansion: NearbyExpansionResult | undefined) {
+  if (!expansion?.usedNearbyExpansion) {
+    return [];
+  }
+
+  return expansion.recommendations.map((recommendation, index) => ({
+    id: `nearby-${recommendation.city.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
+    title: recommendation.title,
+    type: recommendation.strongestOpportunityTypes[0] ?? "nearby_market",
+    score: clamp(88 - index * 4),
+    status: "Nearby market - verify opportunity",
+    reason: recommendation.reason,
+    suggestedAction: recommendation.recommendation,
+    typicalLeadTime: "Research first",
+    source: "model" as const,
+    evidenceLevel: "nearby" as const,
+    evidenceNotes: recommendation.evidenceNotes
+  }));
+}
+
 export async function generateEventOpportunities(input: EventInput): Promise<FlowEventsResult> {
   const cityProfile = input.cityProfile ?? findCityProfile(input.city);
   const foodTypeProfile = input.foodTypeProfile ?? findFoodTypeProfile(input.foodType);
   const realityProfile = findLocalRealityProfile(input.city);
   const hasLiveResearch = Boolean(input.research?.enabled);
+  const nearbyExpansion = input.nearbyExpansion ?? suggestNearbyOpportunities({ city: input.city, foodType: input.foodType, localData: input.localData });
 
   const modelOpportunities = eventOpportunityProfiles.map((profile) => {
     const traitScore = clamp(profile.bestCityTraits.reduce((sum, trait) => sum + traitValue(cityProfile, trait), 0) / profile.bestCityTraits.length);
@@ -214,7 +237,8 @@ export async function generateEventOpportunities(input: EventInput): Promise<Flo
   });
 
   const liveOpportunities = sourceBasedOpportunities(input);
-  const opportunities = [...liveOpportunities, ...modelOpportunities]
+  const nearbyOpportunities = nearbyExpansionOpportunities(nearbyExpansion);
+  const opportunities = [...liveOpportunities, ...nearbyOpportunities, ...modelOpportunities]
     .sort((a, b) => b.score - a.score)
     .slice(0, liveOpportunities.length ? 6 : 5);
 
@@ -224,7 +248,8 @@ export async function generateEventOpportunities(input: EventInput): Promise<Flo
     opportunities,
     summary: top
       ? `FlowEvents found ${opportunities.length} event, pop-up, vendor, or permit leads for ${input.foodType} in ${input.city}. The strongest lead is ${top.title} with a ${top.score}/100 fit score and ${evidenceLabel(top.evidenceLevel)} evidence. Verify details before acting.`
-      : `FlowEvents did not find a strong event fit yet for ${input.foodType} in ${input.city}.`
+      : `FlowEvents did not find a strong event fit yet for ${input.foodType} in ${input.city}.`,
+    nearbyExpansion
   };
 }
 

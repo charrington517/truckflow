@@ -473,7 +473,9 @@ function ReportTable({ reports, total }: { reports: ReportActivity[]; total: num
               <th className="px-5 py-4 font-semibold">Score</th>
               <th className="px-5 py-4 font-semibold">Research</th>
               <th className="px-5 py-4 font-semibold">AI Brief</th>
-              <th className="px-5 py-4 font-semibold">FlowEvents</th>\n              <th className="px-5 py-4 font-semibold">Evidence</th>
+              <th className="px-5 py-4 font-semibold">FlowEvents</th>
+              <th className="px-5 py-4 font-semibold">Evidence</th>
+              <th className="px-5 py-4 font-semibold">Nearby Expansion</th>
               <th className="px-5 py-4 font-semibold">Best Spot</th>
               <th className="px-5 py-4 font-semibold">Menu</th>
               <th className="px-5 py-4 font-semibold">Event</th>
@@ -491,7 +493,9 @@ function ReportTable({ reports, total }: { reports: ReportActivity[]; total: num
                 <td className="px-5 py-4">{item.report.scores?.finalScore ? <Badge>{item.report.scores.finalScore}/100</Badge> : "Legacy"}</td>
                 <td className="px-5 py-4">{item.report.localData?.checks?.length ? `${item.report.localData.checks.filter((check) => check.resultCount > 0).length} OSM checks` : item.report.research?.enabled ? `${item.report.research.sources.length} src / ${item.report.research.signals.competitorMentions} mentions` : "Scoring only"}</td>
                 <td className="px-5 py-4">{item.report.aiNarrative?.enabled ? "Enabled" : "Scoring brief"}</td>
-                <td className="px-5 py-4">{item.report.flowEvents?.opportunities.length ? `${item.report.flowEvents.opportunities.length} leads / ${item.report.flowEvents.opportunities[0]?.title}` : "Legacy"}</td>\n                <td className="px-5 py-4">{item.report.flowEvents?.opportunities[0]?.evidenceLevel ? <Badge variant="outline">{evidenceLabel(item.report.flowEvents.opportunities[0].evidenceLevel)}</Badge> : "Legacy"}</td>
+                <td className="px-5 py-4">{item.report.flowEvents?.opportunities.length ? `${item.report.flowEvents.opportunities.length} leads / ${item.report.flowEvents.opportunities[0]?.title}` : "Legacy"}</td>
+                <td className="px-5 py-4">{item.report.flowEvents?.opportunities[0]?.evidenceLevel ? <Badge variant="outline">{evidenceLabel(item.report.flowEvents.opportunities[0].evidenceLevel)}</Badge> : "Legacy"}</td>
+                <td className="px-5 py-4">{item.report.nearbyExpansion?.usedNearbyExpansion ? <Badge variant="outline">{item.report.nearbyExpansion.recommendations[0]?.city ?? "Used"}</Badge> : "No"}</td>
                 <td className="px-5 py-4">{item.report.bestSpot.name}</td>
                 <td className="px-5 py-4">{item.report.menuOpportunity.item}</td>
                 <td className="px-5 py-4">{item.report.eventOpportunity.name}</td>
@@ -518,7 +522,9 @@ function ReportTable({ reports, total }: { reports: ReportActivity[]; total: num
               {item.report.summary ? <p><span className="font-semibold text-foreground">Summary:</span> {item.report.summary}</p> : null}
               <p><span className="font-semibold text-foreground">Research:</span> {item.report.localData?.checks?.length ? `${item.report.localData.checks.filter((check) => check.resultCount > 0).length} OpenStreetMap checks with signals` : item.report.research?.enabled ? `${item.report.research.sources.length} sources / ${item.report.research.signals.competitorMentions} competitor mentions` : "Scoring only"}</p>
               <p><span className="font-semibold text-foreground">AI brief:</span> {item.report.aiNarrative?.enabled ? "Enabled" : "Scoring brief"}</p>
-              <p><span className="font-semibold text-foreground">FlowEvents:</span> {item.report.flowEvents?.opportunities.length ? `${item.report.flowEvents.opportunities.length} leads, top: ${item.report.flowEvents.opportunities[0]?.title}` : "Legacy report"}</p>\n              <p><span className="font-semibold text-foreground">Top evidence:</span> {evidenceLabel(item.report.flowEvents?.opportunities[0]?.evidenceLevel)}</p>
+              <p><span className="font-semibold text-foreground">FlowEvents:</span> {item.report.flowEvents?.opportunities.length ? `${item.report.flowEvents.opportunities.length} leads, top: ${item.report.flowEvents.opportunities[0]?.title}` : "Legacy report"}</p>
+              <p><span className="font-semibold text-foreground">Top evidence:</span> {evidenceLabel(item.report.flowEvents?.opportunities[0]?.evidenceLevel)}</p>
+              <p><span className="font-semibold text-foreground">Nearby expansion:</span> {item.report.nearbyExpansion?.usedNearbyExpansion ? item.report.nearbyExpansion.recommendations.map((rec) => rec.city).join(", ") : "No"}</p>
               {item.report.aiNarrative?.executiveSummary ? <p><span className="font-semibold text-foreground">AI summary:</span> {item.report.aiNarrative.executiveSummary}</p> : null}
               <p><span className="font-semibold text-foreground">Best spot:</span> {item.report.bestSpot.name}</p>
               <p><span className="font-semibold text-foreground">Menu:</span> {item.report.menuOpportunity.item}</p>

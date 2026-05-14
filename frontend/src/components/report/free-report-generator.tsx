@@ -349,6 +349,48 @@ function FlowEventsSection({ report }: { report: FreeReport }) {
   );
 }
 
+function NearbyMarketExpansion({ report }: { report: FreeReport }) {
+  const expansion = report.nearbyExpansion;
+  if (!expansion?.usedNearbyExpansion || expansion.recommendations.length === 0) return null;
+
+  return (
+    <div className="mt-5 rounded-lg border border-primary/20 bg-background/60 p-5 dark:bg-black/20">
+      <div className="mb-4 flex flex-col justify-between gap-3 md:flex-row md:items-start">
+        <div>
+          <div className="mb-2 flex items-center gap-2">
+            <MapPinned className="h-4 w-4 text-primary" />
+            <p className="font-semibold">Nearby Market Expansion</p>
+          </div>
+          <p className="text-sm leading-6 text-muted-foreground">
+            This is not inside your searched city. TruckFlow is showing nearby market suggestions because the direct local market may be limited.
+          </p>
+        </div>
+        <Badge variant="outline">Nearby</Badge>
+      </div>
+      <div className="grid gap-3">
+        {expansion.recommendations.map((recommendation) => (
+          <article key={recommendation.city} className="rounded-md border border-border bg-card p-4">
+            <div className="mb-3 flex flex-col justify-between gap-3 md:flex-row md:items-start">
+              <div>
+                <h4 className="font-black">{recommendation.title}</h4>
+                <p className="mt-1 text-xs font-semibold text-primary">{recommendation.city} · {recommendation.distanceMiles} miles away</p>
+              </div>
+              <Badge variant="outline">{evidenceBadgeLabel(recommendation.evidenceLevel)}</Badge>
+            </div>
+            <p className="text-sm leading-6 text-muted-foreground">{recommendation.reason}</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {recommendation.strongestOpportunityTypes.map((type) => (
+                <Badge key={type} variant="secondary">{type.replaceAll("_", " ")}</Badge>
+              ))}
+            </div>
+            <p className="mt-3 text-sm"><span className="font-semibold">Action:</span> {recommendation.recommendation}</p>
+          </article>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function LocalDataChecks({ report }: { report: FreeReport }) {
   const localData = report.localData;
   if (!localData?.enabled) return null;

@@ -35,6 +35,30 @@ export type LocalDataResult = {
   summary: string;
 };
 
+export type NearbyMarket = {
+  city: string;
+  distanceMiles: number;
+  reason: string;
+  strongestOpportunityTypes: string[];
+};
+
+export type NearbyRecommendation = {
+  city: string;
+  distanceMiles: number;
+  title: string;
+  reason: string;
+  strongestOpportunityTypes: string[];
+  recommendation: string;
+  evidenceLevel: EvidenceLevel;
+  evidenceNotes: string[];
+};
+
+export type NearbyExpansionResult = {
+  usedNearbyExpansion: boolean;
+  nearbyMarkets: NearbyMarket[];
+  recommendations: NearbyRecommendation[];
+};
+
 export type HotspotLocation = {
   name: string;
   latitude: number;
@@ -101,6 +125,7 @@ export type FlowEventOpportunity = {
 export type FlowEventsResult = {
   opportunities: FlowEventOpportunity[];
   summary: string;
+  nearbyExpansion?: NearbyExpansionResult;
 };
 
 export type FreeReport = {
@@ -138,6 +163,7 @@ export type FreeReport = {
   summary?: string;
   research?: MarketResearch;
   localData?: LocalDataResult;
+  nearbyExpansion?: NearbyExpansionResult;
   aiNarrative?: AiNarrative;
   flowEvents?: FlowEventsResult;
 };

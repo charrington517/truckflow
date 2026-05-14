@@ -3,6 +3,7 @@ import { generateAiNarrative } from "./aiReport.service";
 import { generateEventOpportunities } from "./events.service";
 import { researchLocalMarket } from "./firecrawl.service";
 import { getLocalDataChecks } from "./osm.service";
+import { suggestNearbyOpportunities } from "./nearbyMarkets.service";
 import { generateOpportunityReport } from "./scoring.service";
 import { getDb } from "./db.service";
 import type { FreeReportRequest, ReportActivity } from "../types/truckflow";
@@ -18,6 +19,8 @@ export async function createFreeReport(
   ]);
 
   report.localData = localData;
+  const nearbyExpansion = suggestNearbyOpportunities({ city: input.city, foodType: input.foodType, localData });
+  report.nearbyExpansion = nearbyExpansion;
 
   report.research = research;
   if (research.enabled) {
@@ -29,6 +32,7 @@ export async function createFreeReport(
     foodType: input.foodType,
     research,
     localData,
+    nearbyExpansion,
   });
 
   report.aiNarrative = await generateAiNarrative({
