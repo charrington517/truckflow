@@ -53,6 +53,37 @@ export type LocalDataMapResult = {
   signals: LocalDataMapSignal[];
 };
 
+export type Competitor = {
+  id: string;
+  name: string;
+  city?: string;
+  foodType?: string;
+  usualLocation?: string;
+  latitude?: number;
+  longitude?: number;
+  website?: string;
+  socialUrl?: string;
+  source?: string;
+  confidence?: string;
+  stationary: boolean;
+  notes?: string;
+  lastVerifiedAt?: string;
+  createdAt?: string;
+  overlapScore?: number;
+  url?: string;
+};
+
+export type CompetitorInput = Omit<Competitor, "id" | "createdAt" | "overlapScore" | "url">;
+
+export type FlowIntelResult = {
+  city: string;
+  foodType: string;
+  competitors: Competitor[];
+  summary: string;
+  opportunityGaps: string[];
+  warnings: string[];
+};
+
 export type NearbyMarket = {
   city: string;
   distanceMiles: number;
@@ -180,6 +211,7 @@ export type FreeReport = {
   aiNarrative?: AiNarrative;
   flowEvents?: FlowEventsResult;
   qualityControl?: RecommendationQualityResult;
+  flowIntel?: FlowIntelResult;
 };
 
 export type ReportActivity = {

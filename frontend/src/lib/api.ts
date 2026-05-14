@@ -1,5 +1,5 @@
 import type { LeadPayload, LeadResponse, WaitlistLead } from "@/types/lead";
-import type { FlowEventsResult, FreeReport, LocalDataMapResult, ReportActivity, ReportFeedback, ReportFeedbackPayload } from "@/types/report";
+import type { Competitor, CompetitorInput, FlowEventsResult, FlowIntelResult, FreeReport, LocalDataMapResult, ReportActivity, ReportFeedback, ReportFeedbackPayload } from "@/types/report";
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://192.168.0.210:4000";
 
@@ -49,6 +49,16 @@ export async function getLocalDataMap(city: string, foodType: string): Promise<L
   }
 
   return response.json() as Promise<LocalDataMapResult>;
+}
+
+export async function scanFlowIntel(city: string, foodType: string): Promise<FlowIntelResult> {
+  const response = await fetch(`${apiUrl}/api/flowintel/scan`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ city, foodType })
+  });
+  if (!response.ok) throw new Error("TruckFlow could not scan competitor signals right now.");
+  return response.json() as Promise<FlowIntelResult>;
 }
 
 export async function findEventOpportunities(city: string, foodType: string): Promise<FlowEventsResult> {
@@ -118,4 +128,37 @@ export async function submitReportFeedback(reportId: string, payload: ReportFeed
   }
 
   return response.json() as Promise<ReportFeedback>;
+}
+
+
+export function getCompetitors(adminKey: string): Promise<Competitor[]> {
+  return fetchAdminResource<Competitor[]>("/api/admin/competitors", adminKey);
+}
+
+export async function createCompetitor(payload: CompetitorInput, adminKey: string): Promise<Competitor> {
+  const response = await fetch(`${apiUrl}/api/admin/competitors`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-admin-key": adminKey },
+    body: JSON.stringify(payload)
+  });
+  if (!response.ok) throw new Error("Could not save competitor.");
+  return response.json() as Promise<Competitor>;
+}
+
+export async function updateCompetitor(id: string, payload: Partial<CompetitorInput>, adminKey: string): Promise<Competitor> {
+  const response = await fetch(`${apiUrl}/api/admin/competitors/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", "x-admin-key": adminKey },
+    body: JSON.stringify(payload)
+  });
+  if (!response.ok) throw new Error("Could not update competitor.");
+  return response.json() as Promise<Competitor>;
+}
+
+export async function deleteCompetitor(id: string, adminKey: string): Promise<void> {
+  const response = await fetch(`${apiUrl}/api/admin/competitors/${id}`, {
+    method: "DELETE",
+    headers: { "x-admin-key": adminKey }
+  });
+  if (!response.ok) throw new Error("Could not delete competitor.");
 }

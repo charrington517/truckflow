@@ -434,6 +434,54 @@ function LocalDataChecks({ report }: { report: FreeReport }) {
   );
 }
 
+function FlowIntelSection({ report }: { report: FreeReport }) {
+  const intel = report.flowIntel;
+  if (!intel) return null;
+  const competitors = intel.competitors ?? [];
+
+  return (
+    <div className="mt-5 rounded-lg border border-primary/20 bg-background/60 p-5 dark:bg-black/20">
+      <div className="mb-4 flex flex-col justify-between gap-3 md:flex-row md:items-start">
+        <div>
+          <div className="mb-2 flex items-center gap-2">
+            <Radar className="h-4 w-4 text-primary" />
+            <p className="font-semibold">FlowIntel: Competitor Signals</p>
+          </div>
+          <p className="text-sm leading-6 text-muted-foreground">{intel.summary}</p>
+        </div>
+        <Badge variant="outline">{competitors.length} signals</Badge>
+      </div>
+      {competitors.length ? (
+        <div className="grid gap-3 md:grid-cols-3">
+          {competitors.slice(0, 3).map((competitor) => (
+            <article key={competitor.id} className="rounded-md border border-border bg-card p-4">
+              <div className="mb-2 flex items-start justify-between gap-3">
+                <h4 className="font-black">{competitor.name}</h4>
+                <Badge>{competitor.overlapScore ?? 0}/100</Badge>
+              </div>
+              <div className="mb-2 flex flex-wrap gap-2">
+                <Badge variant="outline">{competitor.stationary ? "Stationary" : "Mobile/unknown"}</Badge>
+                <Badge variant="secondary">{competitor.confidence || "unknown"}</Badge>
+              </div>
+              <p className="text-sm leading-6 text-muted-foreground">{competitor.notes || "Public competitor signal needs verification."}</p>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <p className="rounded-md border border-border bg-card p-4 text-sm text-muted-foreground">
+          TruckFlow did not find strong competitor signals yet. This may mean limited public data, not zero competition.
+        </p>
+      )}
+      {intel.opportunityGaps.length ? (
+        <div className="mt-4 rounded-md border border-border bg-card p-4">
+          <p className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground">Opportunity gaps</p>
+          <div className="grid gap-2 text-sm text-muted-foreground">{intel.opportunityGaps.slice(0, 3).map((gap) => <p key={gap}>{gap}</p>)}</div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function QualityChecks({ report }: { report: FreeReport }) {
   const quality = report.qualityControl;
   if (!quality?.applied) return null;
@@ -602,6 +650,7 @@ function ReportResult({ report }: { report: FreeReport }) {
       <ReportMapSection report={report} />
       <StrategyBrief report={report} />
       <FlowEventsSection report={report} />
+      <FlowIntelSection report={report} />
       <QualityChecks report={report} />
       <AccuracyDisclaimer />
       <div className="grid gap-4 md:grid-cols-2">

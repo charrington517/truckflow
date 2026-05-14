@@ -52,6 +52,26 @@ export function getDb() {
 
     CREATE INDEX IF NOT EXISTS idx_report_feedback_created_at ON report_feedback(createdAt);
     CREATE INDEX IF NOT EXISTS idx_report_feedback_report_id ON report_feedback(reportId);
+
+    CREATE TABLE IF NOT EXISTS competitors (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      city TEXT,
+      foodType TEXT,
+      usualLocation TEXT,
+      latitude REAL,
+      longitude REAL,
+      website TEXT,
+      socialUrl TEXT,
+      source TEXT,
+      confidence TEXT,
+      stationary INTEGER,
+      notes TEXT,
+      lastVerifiedAt TEXT,
+      createdAt TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_competitors_city_food ON competitors(city, foodType);
   `);
 
   return db;

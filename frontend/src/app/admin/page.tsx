@@ -28,12 +28,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { getReportFeedback, getReportHistory, getWaitlistLeads, submitReportFeedback } from "@/lib/api";
+import { createCompetitor, deleteCompetitor, getCompetitors, getReportFeedback, getReportHistory, getWaitlistLeads, submitReportFeedback, updateCompetitor } from "@/lib/api";
 import type { WaitlistLead } from "@/types/lead";
-import type { ReportActivity, ReportFeedback, ReportFeedbackIssueType } from "@/types/report";
+import type { Competitor, CompetitorInput, ReportActivity, ReportFeedback, ReportFeedbackIssueType } from "@/types/report";
 
 type SortMode = "newest" | "oldest";
-type AdminTab = "leads" | "reports" | "accuracy";
+type AdminTab = "leads" | "reports" | "accuracy" | "competitors";
 
 const storageKey = "truckflow-admin-key";
 const issueTypes: ReportFeedbackIssueType[] = [
@@ -104,6 +104,7 @@ export default function AdminPage() {
   const [leads, setLeads] = useState<WaitlistLead[]>([]);
   const [reports, setReports] = useState<ReportActivity[]>([]);
   const [feedback, setFeedback] = useState<ReportFeedback[]>([]);
+  const [competitors, setCompetitors] = useState<Competitor[]>([]);
   const [activeTab, setActiveTab] = useState<AdminTab>("leads");
   const [query, setQuery] = useState("");
   const [sortMode, setSortMode] = useState<SortMode>("newest");
@@ -121,12 +122,13 @@ export default function AdminPage() {
     let mounted = true;
     setLoading(true);
 
-    Promise.all([getWaitlistLeads(adminKey), getReportHistory(adminKey), getReportFeedback(adminKey)])
-      .then(([leadData, reportData, feedbackData]) => {
+    Promise.all([getWaitlistLeads(adminKey), getReportHistory(adminKey), getReportFeedback(adminKey), getCompetitors(adminKey)])
+      .then(([leadData, reportData, feedbackData, competitorData]) => {
         if (!mounted) return;
         setLeads(leadData);
         setReports(reportData);
         setFeedback(feedbackData);
+        setCompetitors(competitorData);
         setError("");
       })
       .catch((err: unknown) => {
@@ -156,6 +158,11 @@ export default function AdminPage() {
     const normalizedQuery = query.trim().toLowerCase();
     return normalizedQuery ? sortedReports.filter((report) => reportSearchText(report).includes(normalizedQuery)) : sortedReports;
   }, [query, sortedReports]);
+
+  const filteredCompetitors = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+    return normalizedQuery ? competitors.filter((item) => [item.name, item.city, item.foodType, item.usualLocation, item.notes, item.confidence].filter(Boolean).join(" ").toLowerCase().includes(normalizedQuery)) : competitors;
+  }, [competitors, query]);
 
   const filteredFeedback = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -195,6 +202,18 @@ export default function AdminPage() {
     ];
   }, [reports]);
 
+  const competitorStats = useMemo(() => {
+    const mapped = competitors.filter((item) => typeof item.latitude === "number" && typeof item.longitude === "number");
+    const stationary = competitors.filter((item) => item.stationary);
+    const latest = competitors[0];
+    return [
+      { label: "Manual Competitors", value: competitors.length.toString(), detail: "Admin-maintained records", icon: Truck },
+      { label: "Mapped Records", value: mapped.length.toString(), detail: "Have coordinates", icon: MapPin },
+      { label: "Stationary", value: stationary.length.toString(), detail: "Known fixed vendors", icon: Building2 },
+      { label: "Latest Entry", value: latest ? latest.name : "No records", detail: latest?.city || "Waiting for manual data", icon: CalendarClock }
+    ];
+  }, [competitors]);
+
   const accuracyStats = useMemo(() => {
     const rated = feedback.filter((item) => typeof item.rating === "number");
     const average = rated.length ? (rated.reduce((sum, item) => sum + (item.rating ?? 0), 0) / rated.length).toFixed(1) : "No ratings";
@@ -226,6 +245,7 @@ export default function AdminPage() {
     setLeads([]);
     setReports([]);
     setFeedback([]);
+    setCompetitors([]);
     setError("");
   }
 
@@ -238,7 +258,7 @@ export default function AdminPage() {
     setFeedback((current) => [reportFeedback, ...current]);
   }
 
-  const stats = activeTab === "leads" ? leadStats : activeTab === "reports" ? reportStats : accuracyStats;
+  const stats = activeTab === "leads" ? leadStats : activeTab === "reports" ? reportStats : activeTab === "competitors" ? competitorStats : accuracyStats;
 
   return (
     <main className="min-h-screen bg-background text-foreground">
@@ -298,7 +318,7 @@ export default function AdminPage() {
         ) : (
           <>
             <div className="mb-5 inline-flex rounded-lg border border-border bg-card p-1">
-              {(["leads", "reports", "accuracy"] as AdminTab[]).map((tab) => (
+              {(["leads", "reports", "accuracy", "competitors"] as AdminTab[]).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => {
@@ -337,14 +357,16 @@ export default function AdminPage() {
                 <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
                   <div>
                     <CardTitle className="text-xl font-black">
-                      {activeTab === "leads" ? "Waitlist Leads" : activeTab === "reports" ? "Report History" : "Accuracy Review"}
+                      {activeTab === "leads" ? "Waitlist Leads" : activeTab === "reports" ? "Report History" : activeTab === "competitors" ? "Competitors" : "Accuracy Review"}
                     </CardTitle>
                     <p className="mt-2 text-sm text-muted-foreground">
                       {activeTab === "leads"
                         ? `${filteredLeads.length} visible of ${leads.length} total`
                         : activeTab === "reports"
                           ? `${filteredReports.length} visible of ${reports.length} total`
-                          : `${filteredFeedback.length} visible of ${feedback.length} total`}
+                          : activeTab === "competitors"
+                            ? `${filteredCompetitors.length} visible of ${competitors.length} total`
+                            : `${filteredFeedback.length} visible of ${feedback.length} total`}
                     </p>
                   </div>
                   <div className="flex flex-col gap-3 sm:flex-row">
@@ -370,6 +392,8 @@ export default function AdminPage() {
                   <LeadTable leads={filteredLeads} total={leads.length} />
                 ) : activeTab === "reports" ? (
                   <ReportTable reports={filteredReports} total={reports.length} adminKey={adminKey} feedbackByReport={feedbackByReport} onFeedbackSaved={handleFeedbackSaved} />
+                ) : activeTab === "competitors" ? (
+                  <CompetitorsTable competitors={filteredCompetitors} total={competitors.length} adminKey={adminKey} onChanged={refreshData} />
                 ) : (
                   <AccuracyTable feedback={filteredFeedback} reports={reports} total={feedback.length} />
                 )}
@@ -444,7 +468,7 @@ function ReportTable({
         <table className="w-full text-left text-sm">
           <thead className="border-b border-border bg-secondary/20 text-xs uppercase tracking-[0.18em] text-muted-foreground">
             <tr>
-              <th className="px-5 py-4 font-semibold">Market</th><th className="px-5 py-4 font-semibold">Score</th><th className="px-5 py-4 font-semibold">Research</th><th className="px-5 py-4 font-semibold">FlowEvents</th><th className="px-5 py-4 font-semibold">Evidence</th><th className="px-5 py-4 font-semibold">Nearby</th><th className="px-5 py-4 font-semibold">Quality</th><th className="px-5 py-4 font-semibold">Accuracy</th><th className="px-5 py-4 font-semibold">Created</th>
+              <th className="px-5 py-4 font-semibold">Market</th><th className="px-5 py-4 font-semibold">Score</th><th className="px-5 py-4 font-semibold">Research</th><th className="px-5 py-4 font-semibold">FlowIntel</th><th className="px-5 py-4 font-semibold">FlowEvents</th><th className="px-5 py-4 font-semibold">Evidence</th><th className="px-5 py-4 font-semibold">Nearby</th><th className="px-5 py-4 font-semibold">Quality</th><th className="px-5 py-4 font-semibold">Accuracy</th><th className="px-5 py-4 font-semibold">Created</th>
             </tr>
           </thead>
           <tbody>
@@ -453,7 +477,7 @@ function ReportTable({
                 <td className="px-5 py-4"><p className="font-semibold">{item.city}</p><Badge className="mt-2">{item.foodType}</Badge></td>
                 <td className="px-5 py-4">{item.report.scores?.finalScore ? <Badge>{item.report.scores.finalScore}/100</Badge> : "Legacy"}</td>
                 <td className="px-5 py-4">{item.report.localData?.checks?.length ? `${item.report.localData.checks.filter((check) => check.resultCount > 0).length} OSM checks` : "Scoring only"}</td>
-                <td className="px-5 py-4">{item.report.flowEvents?.opportunities.length ? `${item.report.flowEvents.opportunities.length} / ${item.report.flowEvents.opportunities[0]?.title}` : "Legacy"}</td>
+                <td className="px-5 py-4">{item.report.flowIntel?.competitors.length ? `${item.report.flowIntel.competitors.length} / ${item.report.flowIntel.competitors[0]?.name}` : "No strong public signals"}</td><td className="px-5 py-4">{item.report.flowEvents?.opportunities.length ? `${item.report.flowEvents.opportunities.length} / ${item.report.flowEvents.opportunities[0]?.title}` : "Legacy"}</td>
                 <td className="px-5 py-4">{item.report.flowEvents?.opportunities[0]?.evidenceLevel ? <Badge variant="outline">{evidenceLabel(item.report.flowEvents.opportunities[0].evidenceLevel)}</Badge> : "Legacy"}</td>
                 <td className="px-5 py-4">{item.report.nearbyExpansion?.usedNearbyExpansion ? <Badge variant="outline">{item.report.nearbyExpansion.recommendations[0]?.city ?? "Used"}</Badge> : "No"}</td>
                 <td className="px-5 py-4">{item.report.qualityControl?.applied ? `${item.report.qualityControl.suppressed.length} suppressed / ${item.report.qualityControl.qualityNotes.length} notes` : "Legacy"}</td><td className="px-5 py-4"><Button variant="outline" size="sm" onClick={() => setReviewing(item)}>Review Accuracy</Button>{feedbackByReport[item.id]?.length ? <p className="mt-2 text-xs text-muted-foreground">{feedbackByReport[item.id].length} review(s)</p> : null}</td>
@@ -553,6 +577,102 @@ function AccuracyTable({ feedback, reports, total }: { feedback: ReportFeedback[
           </article>
         );
       })}
+    </div>
+  );
+}
+
+
+function CompetitorsTable({ competitors, total, adminKey, onChanged }: { competitors: Competitor[]; total: number; adminKey: string; onChanged: () => void }) {
+  const [name, setName] = useState("");
+  const [city, setCity] = useState("");
+  const [foodType, setFoodType] = useState("");
+  const [usualLocation, setUsualLocation] = useState("");
+  const [latitude, setLatitude] = useState("");
+  const [longitude, setLongitude] = useState("");
+  const [confidence, setConfidence] = useState("manual");
+  const [stationary, setStationary] = useState(true);
+  const [notes, setNotes] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError("");
+    if (!name.trim()) {
+      setError("Competitor name is required.");
+      return;
+    }
+    const payload: CompetitorInput = {
+      name: name.trim(),
+      city: city.trim() || undefined,
+      foodType: foodType.trim() || undefined,
+      usualLocation: usualLocation.trim() || undefined,
+      latitude: latitude.trim() ? Number(latitude) : undefined,
+      longitude: longitude.trim() ? Number(longitude) : undefined,
+      confidence,
+      stationary,
+      notes: notes.trim() || undefined,
+      source: "manual_admin"
+    };
+    setSaving(true);
+    try {
+      await createCompetitor(payload, adminKey);
+      setName(""); setCity(""); setFoodType(""); setUsualLocation(""); setLatitude(""); setLongitude(""); setNotes("");
+      onChanged();
+    } catch {
+      setError("Could not save competitor.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function updateNotes(item: Competitor) {
+    const nextNotes = window.prompt("Update notes", item.notes || "");
+    if (nextNotes === null) return;
+    await updateCompetitor(item.id, { notes: nextNotes, confidence: item.confidence, stationary: item.stationary }, adminKey);
+    onChanged();
+  }
+
+  async function remove(item: Competitor) {
+    if (!window.confirm(`Delete ${item.name}?`)) return;
+    await deleteCompetitor(item.id, adminKey);
+    onChanged();
+  }
+
+  return (
+    <div className="grid gap-5 p-5">
+      <form onSubmit={submit} className="grid gap-3 rounded-lg border border-border bg-background/60 p-4 md:grid-cols-2 xl:grid-cols-4">
+        <Input value={name} onChange={(event) => setName(event.target.value)} placeholder="Competitor name" />
+        <Input value={city} onChange={(event) => setCity(event.target.value)} placeholder="City" />
+        <Input value={foodType} onChange={(event) => setFoodType(event.target.value)} placeholder="Food type" />
+        <Input value={usualLocation} onChange={(event) => setUsualLocation(event.target.value)} placeholder="Usual location" />
+        <Input value={latitude} onChange={(event) => setLatitude(event.target.value)} placeholder="Latitude" />
+        <Input value={longitude} onChange={(event) => setLongitude(event.target.value)} placeholder="Longitude" />
+        <select value={confidence} onChange={(event) => setConfidence(event.target.value)} className="rounded-md border border-border bg-card px-3 py-2 text-sm">
+          <option value="manual">Manual</option>
+          <option value="verified">Verified</option>
+          <option value="medium">Medium</option>
+          <option value="low">Low</option>
+        </select>
+        <label className="flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm"><input type="checkbox" checked={stationary} onChange={(event) => setStationary(event.target.checked)} /> Stationary</label>
+        <textarea value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Notes" className="min-h-20 rounded-md border border-border bg-card px-3 py-2 text-sm md:col-span-2 xl:col-span-3" />
+        <Button type="submit" disabled={saving}>{saving ? "Saving..." : "Add Competitor"}</Button>
+        {error ? <p className="text-sm text-destructive md:col-span-2 xl:col-span-4">{error}</p> : null}
+      </form>
+      {competitors.length === 0 ? <div className="rounded-lg border border-border p-6 text-sm text-muted-foreground">{total === 0 ? "No manual competitors yet." : "No competitors match that search."}</div> : null}
+      <div className="grid gap-3">
+        {competitors.map((item) => (
+          <article key={item.id} className="rounded-lg border border-border bg-background/60 p-4">
+            <div className="mb-3 flex flex-col justify-between gap-3 md:flex-row md:items-start">
+              <div><h3 className="font-black">{item.name}</h3><p className="mt-1 text-sm text-muted-foreground">{item.city || "No city"} / {item.foodType || "No food type"}</p></div>
+              <div className="flex flex-wrap gap-2"><Badge>{item.confidence || "unknown"}</Badge><Badge variant="outline">{item.stationary ? "Stationary" : "Mobile/unknown"}</Badge></div>
+            </div>
+            <p className="text-sm text-muted-foreground">{item.usualLocation || "Location not provided"}</p>
+            {item.notes ? <p className="mt-2 text-sm text-muted-foreground">{item.notes}</p> : null}
+            <div className="mt-4 flex gap-2"><Button size="sm" variant="outline" onClick={() => updateNotes(item)}>Edit Notes</Button><Button size="sm" variant="ghost" onClick={() => remove(item)}>Delete</Button></div>
+          </article>
+        ))}
+      </div>
     </div>
   );
 }

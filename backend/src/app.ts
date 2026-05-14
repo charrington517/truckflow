@@ -5,6 +5,7 @@ import helmet from "helmet";
 import morgan from "morgan";
 import { boostRouter } from "./routes/boost.routes";
 import { eventsRouter } from "./routes/events.routes";
+import { flowIntelRouter } from "./routes/flowIntel.routes";
 import { healthRouter } from "./routes/health.routes";
 import { leadsRouter } from "./routes/leads.routes";
 import { localDataRouter } from "./routes/local-data.routes";
@@ -44,6 +45,7 @@ app.use("/api", localDataRouter);
 app.use("/api", locationsRouter);
 app.use("/api", menuRouter);
 app.use("/api", eventsRouter);
+app.use("/api", flowIntelRouter);
 app.use("/api", boostRouter);
 
 app.use((error: unknown, _req: Request, res: Response, next: NextFunction) => {

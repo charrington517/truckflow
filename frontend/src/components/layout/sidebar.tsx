@@ -1,9 +1,9 @@
-import { BarChart3, Gauge, Map, MenuSquare, Rocket, Settings, Shield, Ticket } from "lucide-react";
+import { BarChart3, Gauge, Map, MenuSquare, Radar, Rocket, Settings, Shield, Ticket } from "lucide-react";
 import { sidebarItems } from "@/data/demo";
 import { BrandLogo } from "@/components/brand/brand-logo";
 
-const navItems = [...sidebarItems, "Admin"];
-const icons = [Gauge, Map, MenuSquare, Ticket, Rocket, BarChart3, Settings, Shield];
+const navItems = [...sidebarItems, "FlowIntel", "Admin"];
+const icons = [Gauge, Map, MenuSquare, Ticket, Rocket, BarChart3, Settings, Radar, Shield];
 
 export function Sidebar() {
   return (
@@ -17,11 +17,12 @@ export function Sidebar() {
           const Icon = icons[index];
           const isAdmin = item === "Admin";
           const isFlowEvents = item === "FlowEvents";
+          const isFlowIntel = item === "FlowIntel";
           return (
             <a
               key={item}
               className={`flex items-center gap-3 rounded-md px-3 py-3 text-sm font-semibold transition ${index === 0 ? "bg-primary text-black" : "text-muted-foreground hover:bg-secondary hover:text-foreground"}`}
-              href={isAdmin ? "/admin" : isFlowEvents ? "/flowevents" : "#dashboard"}
+              href={isAdmin ? "/admin" : isFlowIntel ? "/flowintel" : isFlowEvents ? "/flowevents" : "#dashboard"}
             >
               <Icon className="h-4 w-4" />
               {item}

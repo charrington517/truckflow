@@ -2,6 +2,7 @@ import { randomUUID } from "crypto";
 import { generateAiNarrative } from "./aiReport.service";
 import { generateEventOpportunities } from "./events.service";
 import { researchLocalMarket } from "./firecrawl.service";
+import { scanCompetitors } from "./competitorIntel.service";
 import { getLocalDataChecks } from "./osm.service";
 import { filterRecommendations } from "./recommendationQuality.service";
 import { suggestNearbyOpportunities } from "./nearbyMarkets.service";
@@ -48,6 +49,8 @@ export async function createFreeReport(
 
   report.flowEvents.opportunities = qualityControl.recommendations;
   report.qualityControl = qualityControl;
+
+  report.flowIntel = await scanCompetitors(input);
 
   report.aiNarrative = await generateAiNarrative({
     city: input.city,
