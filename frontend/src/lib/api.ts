@@ -1,5 +1,5 @@
 import type { LeadPayload, LeadResponse, WaitlistLead } from "@/types/lead";
-import type { FlowEventsResult, FreeReport, ReportActivity, ReportFeedback, ReportFeedbackPayload } from "@/types/report";
+import type { FlowEventsResult, FreeReport, LocalDataMapResult, ReportActivity, ReportFeedback, ReportFeedbackPayload } from "@/types/report";
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://192.168.0.210:4000";
 
@@ -33,6 +33,22 @@ export async function joinWaitlist(payload: LeadPayload): Promise<LeadResponse> 
   }
 
   return response.json() as Promise<LeadResponse>;
+}
+
+export async function getLocalDataMap(city: string, foodType: string): Promise<LocalDataMapResult> {
+  const response = await fetch(`${apiUrl}/api/local-data/map`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ city, foodType })
+  });
+
+  if (!response.ok) {
+    throw new Error("TruckFlow could not load local map data right now.");
+  }
+
+  return response.json() as Promise<LocalDataMapResult>;
 }
 
 export async function findEventOpportunities(city: string, foodType: string): Promise<FlowEventsResult> {

@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { AlertTriangle, CalendarClock, ChevronLeft, ExternalLink, Loader2, Search, Ticket } from "lucide-react";
@@ -9,8 +10,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { findEventOpportunities } from "@/lib/api";
-import type { FlowEventsResult } from "@/types/report";
+import { findEventOpportunities, getLocalDataMap } from "@/lib/api";
+import type { FlowEventsResult, LocalDataMapResult } from "@/types/report";
+
+const LocalOpportunityMap = dynamic(() => import("@/components/map/local-opportunity-map").then((mod) => mod.LocalOpportunityMap), {
+  ssr: false,
+  loading: () => <div className="rounded-lg border border-border bg-card p-5 text-sm text-muted-foreground">Loading local opportunity map...</div>
+});
 
 function evidenceBadgeLabel(level?: string) {
   if (level === "verified") return "Verified";
@@ -23,12 +29,14 @@ export default function FlowEventsPage() {
   const [city, setCity] = useState("Portland, OR");
   const [foodType, setFoodType] = useState("Tacos");
   const [result, setResult] = useState<FlowEventsResult | null>(null);
+  const [mapData, setMapData] = useState<LocalDataMapResult | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
+    setMapData(null);
 
     if (!city.trim() || !foodType.trim()) {
       setError("Enter a city and food type to find opportunities.");
@@ -37,7 +45,14 @@ export default function FlowEventsPage() {
 
     setLoading(true);
     try {
-      setResult(await findEventOpportunities(city.trim(), foodType.trim()));
+      const cleanCity = city.trim();
+      const cleanFoodType = foodType.trim();
+      const [events, localMap] = await Promise.all([
+        findEventOpportunities(cleanCity, cleanFoodType),
+        getLocalDataMap(cleanCity, cleanFoodType)
+      ]);
+      setResult(events);
+      setMapData(localMap);
     } catch {
       setError("TruckFlow could not load FlowEvents right now. Please try again.");
     } finally {
@@ -108,6 +123,7 @@ export default function FlowEventsPage() {
 
         {result ? (
           <section>
+            {mapData ? <div className="mb-6"><LocalOpportunityMap data={mapData} /></div> : null}
             <div className="mb-4 flex flex-col justify-between gap-3 md:flex-row md:items-end">
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.22em] text-primary">Opportunity list</p>
@@ -125,7 +141,8 @@ export default function FlowEventsPage() {
                         <div className="mt-2 flex flex-wrap gap-2">
                           <Badge>{opportunity.score}/100</Badge>
                           <Badge variant="outline">{opportunity.type.replaceAll("_", " ")}</Badge>
-                          <Badge variant={opportunity.source === "firecrawl" ? "teal" : "secondary"}>{opportunity.source === "firecrawl" ? "Live Research" : "Model"}</Badge>\n                          <Badge variant={opportunity.evidenceLevel === "verified" ? "teal" : opportunity.evidenceLevel === "nearby" ? "outline" : "secondary"}>{evidenceBadgeLabel(opportunity.evidenceLevel)}</Badge>
+                          <Badge variant={opportunity.source === "firecrawl" ? "teal" : "secondary"}>{opportunity.source === "firecrawl" ? "Live Research" : "Model"}</Badge>
+                          <Badge variant={opportunity.evidenceLevel === "verified" ? "teal" : opportunity.evidenceLevel === "nearby" ? "outline" : "secondary"}>{evidenceBadgeLabel(opportunity.evidenceLevel)}</Badge>
                         </div>
                       </div>
                       <div className="flex items-center gap-2 text-sm font-semibold text-primary">

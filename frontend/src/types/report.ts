@@ -29,8 +29,28 @@ export type LocalDataCheck = {
 export type LocalDataResult = {
   enabled: true;
   sources: ["openstreetmap"];
+  center?: {
+    latitude: number;
+    longitude: number;
+  };
   checks: LocalDataCheck[];
   summary: string;
+};
+
+export type LocalDataMapSignal = {
+  category: OsmQueryType;
+  count: number;
+  places: LocalDataPlace[];
+};
+
+export type LocalDataMapResult = {
+  city: string;
+  foodType: string;
+  center: {
+    latitude: number;
+    longitude: number;
+  } | null;
+  signals: LocalDataMapSignal[];
 };
 
 export type NearbyMarket = {

@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import { searchNearbyPlaces } from "../services/osm.service";
+import { getLocalDataMap, searchNearbyPlaces } from "../services/osm.service";
 import type { OsmQueryType } from "../types/truckflow";
 
 export async function checkLocalDataController(req: Request, res: Response) {
@@ -11,4 +11,9 @@ export async function checkLocalDataController(req: Request, res: Response) {
     queryType: result.queryType,
     resultCount: result.resultCount
   });
+}
+
+export async function mapLocalDataController(req: Request, res: Response) {
+  const result = await getLocalDataMap(req.body as { city: string; foodType: string; radiusMiles?: number });
+  res.json(result);
 }

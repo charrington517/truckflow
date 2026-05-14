@@ -1,5 +1,5 @@
 import { findCityCoordinate } from "../data/cityCoordinates";
-import type { LocalDataCheck, LocalDataResult, OsmQueryType } from "../types/truckflow";
+import type { LocalDataCheck, LocalDataMapResult, LocalDataResult, OsmQueryType } from "../types/truckflow";
 
 type SearchNearbyPlacesInput = {
   city: string;
@@ -154,7 +154,7 @@ export async function searchNearbyPlaces(input: SearchNearbyPlacesInput): Promis
     const result: LocalDataCheck = {
       queryType: input.queryType,
       resultCount: places.length,
-      topPlaces: places.slice(0, 5),
+      topPlaces: places.slice(0, MAX_RESULTS),
       summary: `${places.length} ${input.queryType.replace("_", " ")} signal${places.length === 1 ? "" : "s"} found within ${radius} miles of ${coordinate.city}.`
     };
 
@@ -175,12 +175,35 @@ export async function getLocalDataChecks(input: { city: string; radiusMiles?: nu
 
   const found = checks.filter((check) => check.resultCount > 0);
 
+  const coordinate = findCityCoordinate(input.city);
+
   return {
     enabled: true,
     sources: ["openstreetmap"],
+    center: coordinate ? { latitude: coordinate.latitude, longitude: coordinate.longitude } : undefined,
     checks,
     summary: found.length
       ? `OpenStreetMap found local signals for ${found.map((check) => check.queryType.replace("_", " ")).join(", ")} near ${input.city}.`
       : `OpenStreetMap did not return local business/place signals for the checked categories near ${input.city}. Treat recommendations as low-confidence until verified.`
+  };
+}
+
+
+export async function getLocalDataMap(input: { city: string; foodType: string; radiusMiles?: number }): Promise<LocalDataMapResult> {
+  const coordinate = findCityCoordinate(input.city);
+  const queryTypes: OsmQueryType[] = ["brewery", "restaurant", "market", "industrial", "tourism", "college", "event_space"];
+  const checks = await Promise.all(
+    queryTypes.map((queryType) => searchNearbyPlaces({ city: input.city, queryType, radiusMiles: input.radiusMiles }))
+  );
+
+  return {
+    city: input.city,
+    foodType: input.foodType,
+    center: coordinate ? { latitude: coordinate.latitude, longitude: coordinate.longitude } : null,
+    signals: checks.map((check) => ({
+      category: check.queryType,
+      count: check.resultCount,
+      places: check.topPlaces
+    }))
   };
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { FormEvent, useState } from "react";
 import { motion } from "framer-motion";
 import { AlertTriangle, Brain, CalendarClock, ChefHat, CheckCircle2, ExternalLink, Loader2, LockKeyhole, MapPinned, Radar, Ticket, TrendingUp } from "lucide-react";
@@ -8,7 +9,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { generateFreeReport, joinWaitlist } from "@/lib/api";
-import type { FreeReport } from "@/types/report";
+import type { FreeReport, LocalDataMapResult } from "@/types/report";
+
+const LocalOpportunityMap = dynamic(() => import("@/components/map/local-opportunity-map").then((mod) => mod.LocalOpportunityMap), {
+  ssr: false,
+  loading: () => <div className="mt-5 rounded-lg border border-border bg-card p-5 text-sm text-muted-foreground">Loading local opportunity map...</div>
+});
 
 type FormErrors = {
   city?: string;
@@ -324,7 +330,8 @@ function FlowEventsSection({ report }: { report: FreeReport }) {
                 <div className="mt-2 flex flex-wrap gap-2">
                   <Badge>{opportunity.score}/100</Badge>
                   <Badge variant="outline">{opportunity.type.replaceAll("_", " ")}</Badge>
-                  <Badge variant={opportunity.source === "firecrawl" ? "teal" : "secondary"}>{opportunity.source === "firecrawl" ? "Live Research" : "Model"}</Badge>\n                  <Badge variant={opportunity.evidenceLevel === "verified" ? "teal" : opportunity.evidenceLevel === "nearby" ? "outline" : "secondary"}>{evidenceBadgeLabel(opportunity.evidenceLevel)}</Badge>
+                  <Badge variant={opportunity.source === "firecrawl" ? "teal" : "secondary"}>{opportunity.source === "firecrawl" ? "Live Research" : "Model"}</Badge>
+                  <Badge variant={opportunity.evidenceLevel === "verified" ? "teal" : opportunity.evidenceLevel === "nearby" ? "outline" : "secondary"}>{evidenceBadgeLabel(opportunity.evidenceLevel)}</Badge>
                 </div>
               </div>
               <p className="text-sm font-semibold text-primary">{opportunity.typicalLeadTime}</p>
@@ -462,6 +469,31 @@ function QualityChecks({ report }: { report: FreeReport }) {
   );
 }
 
+function mapDataFromReport(report: FreeReport): LocalDataMapResult | null {
+  if (!report.localData?.center) return null;
+  return {
+    city: report.city,
+    foodType: report.foodType,
+    center: report.localData.center,
+    signals: report.localData.checks.map((check) => ({
+      category: check.queryType,
+      count: check.resultCount,
+      places: check.topPlaces
+    }))
+  };
+}
+
+function ReportMapSection({ report }: { report: FreeReport }) {
+  const data = mapDataFromReport(report);
+  if (!data) return null;
+
+  return (
+    <div className="mt-5">
+      <LocalOpportunityMap data={data} />
+    </div>
+  );
+}
+
 function StrategyBrief({ report }: { report: FreeReport }) {
   const narrative = report.aiNarrative;
 
@@ -567,6 +599,7 @@ function ReportResult({ report }: { report: FreeReport }) {
       </div>
       <ScoreBreakdown report={report} />
       <LocalMarketSignals report={report} />
+      <ReportMapSection report={report} />
       <StrategyBrief report={report} />
       <FlowEventsSection report={report} />
       <QualityChecks report={report} />
