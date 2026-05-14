@@ -1,5 +1,6 @@
 import { findCityProfile } from "../data/cityProfiles";
 import { findFoodTypeProfile } from "../data/foodTypeProfiles";
+import { findLocalRealityProfile } from "../data/localRealityProfiles";
 import type { FreeReport, FreeReportRequest, OpportunityScores } from "../types/truckflow";
 
 const clamp = (value: number) => Math.max(0, Math.min(100, Math.round(value)));
@@ -11,13 +12,13 @@ function getDayPart(hour: number) {
   return "lunch";
 }
 
-function selectBestSpot(profile: ReturnType<typeof findCityProfile>, dayPart: string, isWeekend: boolean) {
+function selectBestSpot(profile: ReturnType<typeof findCityProfile>, dayPart: string, isWeekend: boolean, avoidBreweryDefault: boolean) {
   if (profile.industrialWorkerDensity >= 78 && dayPart === "lunch") return "Industrial Lunch Corridor";
   if (profile.officeWorkerDensity >= 76 && dayPart === "lunch") return "Downtown Office Cluster";
   if (profile.touristTraffic >= 82 && (isWeekend || dayPart === "dinner")) return "Tourist Waterfront Strip";
   if (profile.collegeCrowd >= 78 && dayPart !== "lunch") return "College Night Crowd";
   if (profile.eventDensity >= 72 && isWeekend) return "Weekend Market Zone";
-  return "Brewery/Food Pod Area";
+  return avoidBreweryDefault ? "Community and Worksite Demand Pocket" : "Brewery/Food Pod Area";
 }
 
 function selectTimeWindow(dayPart: string, isWeekend: boolean) {
@@ -56,6 +57,7 @@ export function generateOpportunityReport(input: FreeReportRequest): FreeReport 
   const dayPart = getDayPart(hour);
   const cityProfile = findCityProfile(input.city);
   const foodProfile = findFoodTypeProfile(input.foodType);
+  const realityProfile = findLocalRealityProfile(input.city);
 
   const timeDemand =
     dayPart === "late-night"
@@ -87,12 +89,19 @@ export function generateOpportunityReport(input: FreeReportRequest): FreeReport 
     finalScore
   };
 
-  const bestSpotName = selectBestSpot(cityProfile, dayPart, isWeekend);
+  const avoidBreweryDefault = realityProfile.avoidUnverifiedTypes.includes("brewery_pop_up");
+  const bestSpotName = selectBestSpot(cityProfile, dayPart, isWeekend, avoidBreweryDefault);
   const menuItem = selectMenuOpportunity(input.foodType, dayPart, cityProfile);
   const boostPromo = selectBoostIdea(dayPart, isWeekend, eventPotentialScore, input.foodType);
   const displayFoodType = titleCase(input.foodType);
   const displayCity = input.city.trim();
   const expectedLift = `+${Math.max(10, Math.round(finalScore / 4))}%`;
+
+  const modelNotes = [
+    "Based on TruckFlow scoring model only.",
+    realityProfile.marketReality,
+    ...realityProfile.localNotes.slice(0, 2)
+  ];
 
   return {
     city: displayCity,
@@ -100,24 +109,41 @@ export function generateOpportunityReport(input: FreeReportRequest): FreeReport 
     bestSpot: {
       name: bestSpotName,
       timeWindow: selectTimeWindow(dayPart, isWeekend),
-      reason: `${bestSpotName} fits ${displayFoodType} because ${displayCity} is showing ${dayPart.replace("-", " ")} demand strength, a ${cityProfile.foodTruckFriendliness}/100 truck-friendly profile, and a ${competitionScore}/100 opportunity gap.`,
-      score: finalScore
+      reason: `${bestSpotName} fits ${displayFoodType} because ${displayCity} is showing ${dayPart.replace("-", " ")} demand strength, a ${cityProfile.foodTruckFriendliness}/100 truck-friendly profile, and a ${competitionScore}/100 opportunity gap. This is a model estimate, not a verified booking location.`,
+      score: finalScore,
+      evidenceLevel: realityProfile.defaultEvidenceLevel,
+      evidenceNotes: modelNotes
     },
     menuOpportunity: {
       item: menuItem,
       reason: `${menuItem} gives this concept a sharper edge: ${displayFoodType} has ${foodProfile.averageTicketPotential}/100 ticket potential and ${foodProfile.uniqueness}/100 uniqueness in this scoring model.`,
-      confidence: clamp(menuGapScore * 0.7 + demandScore * 0.3)
+      confidence: clamp(menuGapScore * 0.7 + demandScore * 0.3),
+      evidenceLevel: "model",
+      evidenceNotes: [
+        "Based on food-type scoring data, not verified local menu scraping.",
+        "Validate competitor menus and pricing before changing your menu."
+      ]
     },
     eventOpportunity: {
-      name: eventPotentialScore >= 78 ? "High-Traffic Event Corridor" : isWeekend ? "Weekend Pop-Up Market" : "Neighborhood Demand Pocket",
-      status: eventPotentialScore >= 75 ? "Strong near-term opportunity" : "Worth monitoring",
-      reason: `${displayCity} scored ${eventPotentialScore}/100 for event potential using event density, tourist traffic, weekend demand, and food-type fit.`
+      name: eventPotentialScore >= 78 ? "Potential High-Traffic Event Area" : isWeekend ? "Potential Weekend Market Lead" : "Potential Neighborhood Demand Pocket",
+      status: "Needs verification",
+      reason: `${displayCity} scored ${eventPotentialScore}/100 for event potential using event density, tourist traffic, weekend demand, and food-type fit. No specific event or permit opening is confirmed unless live research provides a source.`,
+      evidenceLevel: realityProfile.defaultEvidenceLevel,
+      evidenceNotes: [
+        realityProfile.researchDisabledNote,
+        "Verify event calendars, organizer contacts, and city vending rules before operating."
+      ]
     },
     boostIdea: {
       promo: boostPromo,
-      expectedLift
+      expectedLift,
+      evidenceLevel: "model",
+      evidenceNotes: [
+        "Estimated lift is directional and based on scoring only.",
+        "Test the promo with a small audience before treating it as proven."
+      ]
     },
     scores,
-    summary: `TruckFlow sees a ${finalScore}/100 opportunity for ${displayFoodType} in ${displayCity}. The strongest signals are demand (${demandScore}/100), menu gap (${menuGapScore}/100), and revenue lift potential (${revenueBoostScore}/100) for the current ${dayPart.replace("-", " ")} window.`
+    summary: `TruckFlow sees a ${finalScore}/100 modeled opportunity for ${displayFoodType} in ${displayCity}. Live market research is not currently enabled, so this report is based on TruckFlow's scoring model and local profile assumptions. Verify specific events, businesses, permits, and vending rules before acting.`
   };
 }

@@ -1,3 +1,5 @@
+export type EvidenceLevel = "verified" | "nearby" | "model" | "low_confidence";
+
 export type OpportunityScores = {
   demandScore: number;
   competitionScore: number;
@@ -41,6 +43,8 @@ export type FlowEventOpportunity = {
   suggestedAction: string;
   typicalLeadTime: string;
   source: "model" | "firecrawl";
+  evidenceLevel: EvidenceLevel;
+  evidenceNotes: string[];
   url?: string;
 };
 
@@ -57,20 +61,28 @@ export type FreeReport = {
     timeWindow: string;
     reason: string;
     score: number;
+    evidenceLevel?: EvidenceLevel;
+    evidenceNotes?: string[];
   };
   menuOpportunity: {
     item: string;
     reason: string;
     confidence: number;
+    evidenceLevel?: EvidenceLevel;
+    evidenceNotes?: string[];
   };
   eventOpportunity: {
     name: string;
     status: string;
     reason: string;
+    evidenceLevel?: EvidenceLevel;
+    evidenceNotes?: string[];
   };
   boostIdea: {
     promo: string;
     expectedLift: string;
+    evidenceLevel?: EvidenceLevel;
+    evidenceNotes?: string[];
   };
   scores?: OpportunityScores;
   summary?: string;

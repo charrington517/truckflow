@@ -267,6 +267,31 @@ function LocalMarketSignals({ report }: { report: FreeReport }) {
 }
 
 
+function evidenceBadgeLabel(level?: string) {
+  if (level === "verified") return "Verified";
+  if (level === "nearby") return "Nearby";
+  if (level === "model") return "Estimate";
+  return "Needs Verification";
+}
+
+function EvidenceNotes({ notes }: { notes?: string[] }) {
+  if (!notes?.length) return null;
+
+  return (
+    <ul className="mt-3 grid gap-1 text-xs leading-5 text-muted-foreground">
+      {notes.slice(0, 3).map((note) => <li key={note}>- {note}</li>)}
+    </ul>
+  );
+}
+
+function AccuracyDisclaimer() {
+  return (
+    <div className="mt-5 rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 text-sm leading-6 text-muted-foreground">
+      TruckFlow recommendations are decision-support, not confirmed bookings or permits. Verify locations, permits, and event availability before operating.
+    </div>
+  );
+}
+
 function FlowEventsSection({ report }: { report: FreeReport }) {
   const [expanded, setExpanded] = useState(false);
   const flowEvents = report.flowEvents;
@@ -299,7 +324,7 @@ function FlowEventsSection({ report }: { report: FreeReport }) {
                 <div className="mt-2 flex flex-wrap gap-2">
                   <Badge>{opportunity.score}/100</Badge>
                   <Badge variant="outline">{opportunity.type.replaceAll("_", " ")}</Badge>
-                  <Badge variant={opportunity.source === "firecrawl" ? "teal" : "secondary"}>{opportunity.source === "firecrawl" ? "Live Research" : "Model"}</Badge>
+                  <Badge variant={opportunity.source === "firecrawl" ? "teal" : "secondary"}>{opportunity.source === "firecrawl" ? "Live Research" : "Model"}</Badge>\n                  <Badge variant={opportunity.evidenceLevel === "verified" ? "teal" : opportunity.evidenceLevel === "nearby" ? "outline" : "secondary"}>{evidenceBadgeLabel(opportunity.evidenceLevel)}</Badge>
                 </div>
               </div>
               <p className="text-sm font-semibold text-primary">{opportunity.typicalLeadTime}</p>
@@ -430,7 +455,7 @@ function ReportResult({ report }: { report: FreeReport }) {
       <ScoreBreakdown report={report} />
       <LocalMarketSignals report={report} />
       <StrategyBrief report={report} />
-      <FlowEventsSection report={report} />
+      <FlowEventsSection report={report} />\n      <AccuracyDisclaimer />
       <div className="grid gap-4 md:grid-cols-2">
         {cards.map((card, index) => {
           const Icon = card.icon;

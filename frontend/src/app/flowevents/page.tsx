@@ -12,6 +12,13 @@ import { Input } from "@/components/ui/input";
 import { findEventOpportunities } from "@/lib/api";
 import type { FlowEventsResult } from "@/types/report";
 
+function evidenceBadgeLabel(level?: string) {
+  if (level === "verified") return "Verified";
+  if (level === "nearby") return "Nearby";
+  if (level === "model") return "Estimate";
+  return "Needs Verification";
+}
+
 export default function FlowEventsPage() {
   const [city, setCity] = useState("Portland, OR");
   const [foodType, setFoodType] = useState("Tacos");
@@ -95,6 +102,10 @@ export default function FlowEventsPage() {
           </CardContent>
         </Card>
 
+        <div className="mb-6 rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 text-sm leading-6 text-muted-foreground">
+          TruckFlow recommendations are decision-support, not confirmed bookings or permits. Verify locations, permits, and event availability before operating.
+        </div>
+
         {result ? (
           <section>
             <div className="mb-4 flex flex-col justify-between gap-3 md:flex-row md:items-end">
@@ -114,7 +125,7 @@ export default function FlowEventsPage() {
                         <div className="mt-2 flex flex-wrap gap-2">
                           <Badge>{opportunity.score}/100</Badge>
                           <Badge variant="outline">{opportunity.type.replaceAll("_", " ")}</Badge>
-                          <Badge variant={opportunity.source === "firecrawl" ? "teal" : "secondary"}>{opportunity.source === "firecrawl" ? "Live Research" : "Model"}</Badge>
+                          <Badge variant={opportunity.source === "firecrawl" ? "teal" : "secondary"}>{opportunity.source === "firecrawl" ? "Live Research" : "Model"}</Badge>\n                          <Badge variant={opportunity.evidenceLevel === "verified" ? "teal" : opportunity.evidenceLevel === "nearby" ? "outline" : "secondary"}>{evidenceBadgeLabel(opportunity.evidenceLevel)}</Badge>
                         </div>
                       </div>
                       <div className="flex items-center gap-2 text-sm font-semibold text-primary">
