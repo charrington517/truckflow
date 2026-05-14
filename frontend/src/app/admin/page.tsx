@@ -84,6 +84,21 @@ function leadSearchText(lead: WaitlistLead) {
   return [lead.name, lead.email, lead.businessName, lead.city, lead.foodType].filter(Boolean).join(" ").toLowerCase();
 }
 
+function evidenceCounts(report: ReportActivity) {
+  const sources = report.report.evidenceSources ?? [];
+  return {
+    verified: sources.filter((source) => source.confidence === "verified").length,
+    nearby: sources.filter((source) => source.confidence === "nearby").length,
+    estimated: sources.filter((source) => source.confidence === "estimated").length,
+    low: sources.filter((source) => source.confidence === "low").length
+  };
+}
+
+function hasLowConfidence(report: ReportActivity) {
+  const counts = evidenceCounts(report);
+  return counts.low > 0 || report.report.flowEvents?.opportunities.some((item) => item.evidenceLevel === "low_confidence") || false;
+}
+
 function reportSearchText(report: ReportActivity) {
   return [
     report.city,
@@ -94,7 +109,8 @@ function reportSearchText(report: ReportActivity) {
     report.report.boostIdea.promo,
     report.report.summary ?? "",
     report.report.research?.summary ?? "",
-    report.report.aiNarrative?.executiveSummary ?? ""
+    report.report.aiNarrative?.executiveSummary ?? "",
+    ...(report.report.evidenceSources ?? []).flatMap((source) => [source.label, source.sourceType, source.confidence, source.notes ?? ""])
   ].join(" ").toLowerCase();
 }
 
@@ -108,6 +124,7 @@ export default function AdminPage() {
   const [activeTab, setActiveTab] = useState<AdminTab>("leads");
   const [query, setQuery] = useState("");
   const [sortMode, setSortMode] = useState<SortMode>("newest");
+  const [lowConfidenceOnly, setLowConfidenceOnly] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -156,8 +173,9 @@ export default function AdminPage() {
 
   const filteredReports = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
-    return normalizedQuery ? sortedReports.filter((report) => reportSearchText(report).includes(normalizedQuery)) : sortedReports;
-  }, [query, sortedReports]);
+    const searched = normalizedQuery ? sortedReports.filter((report) => reportSearchText(report).includes(normalizedQuery)) : sortedReports;
+    return lowConfidenceOnly ? searched.filter(hasLowConfidence) : searched;
+  }, [lowConfidenceOnly, query, sortedReports]);
 
   const filteredCompetitors = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -191,13 +209,15 @@ export default function AdminPage() {
     const uniqueCities = new Set(reports.map((report) => report.city.trim().toLowerCase()).filter(Boolean));
     const latest = [...reports].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
     const flowEventCount = reports.reduce((sum, report) => sum + (report.report.flowEvents?.opportunities.length ?? 0), 0);
-    const sourceCount = reports.reduce((sum, report) => sum + (report.report.research?.sources.length ?? 0), 0);
+    const sourceCount = reports.reduce((sum, report) => sum + (report.report.evidenceSources?.length ?? report.report.research?.sources.length ?? 0), 0);
+    const verifiedCount = reports.reduce((sum, report) => sum + evidenceCounts(report).verified, 0);
+    const lowCount = reports.reduce((sum, report) => sum + evidenceCounts(report).low, 0);
     const scored = reports.filter((report) => report.report.scores?.finalScore);
     const averageScore = scored.length ? Math.round(scored.reduce((sum, report) => sum + (report.report.scores?.finalScore ?? 0), 0) / scored.length).toString() : "No data";
     return [
       { label: "Total Reports", value: reports.length.toString(), detail: `Avg score: ${averageScore}`, icon: BarChart3 },
-      { label: "Unique Cities", value: uniqueCities.size.toString(), detail: "Markets requested", icon: MapPin },
-      { label: "FlowEvents", value: flowEventCount.toString(), detail: `${sourceCount} research sources`, icon: Utensils },
+      { label: "Unique Cities", value: uniqueCities.size.toString(), detail: `${verifiedCount} verified / ${lowCount} low`, icon: MapPin },
+      { label: "FlowEvents", value: flowEventCount.toString(), detail: `${sourceCount} cited sources`, icon: Utensils },
       { label: "Latest Report", value: latest ? formatDate(latest.createdAt) : "No reports yet", detail: latest ? `${latest.city} / ${latest.foodType}` : "Waiting for demand", icon: Sparkles }
     ];
   }, [reports]);
@@ -370,6 +390,11 @@ export default function AdminPage() {
                     </p>
                   </div>
                   <div className="flex flex-col gap-3 sm:flex-row">
+                    {activeTab === "reports" ? (
+                      <Button variant={lowConfidenceOnly ? "default" : "outline"} onClick={() => setLowConfidenceOnly((value) => !value)}>
+                        Low-confidence only
+                      </Button>
+                    ) : null}
                     <div className="flex min-w-0 items-center gap-2 rounded-md border border-border bg-card px-3 sm:w-80">
                       <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
                       <Input className="border-0 bg-transparent px-0 focus-visible:ring-0" placeholder="Search admin data" value={query} onChange={(event) => setQuery(event.target.value)} />
@@ -478,7 +503,7 @@ function ReportTable({
                 <td className="px-5 py-4">{item.report.scores?.finalScore ? <Badge>{item.report.scores.finalScore}/100</Badge> : "Legacy"}</td>
                 <td className="px-5 py-4">{item.report.localData?.checks?.length ? `${item.report.localData.checks.filter((check) => check.resultCount > 0).length} OSM checks` : "Scoring only"}</td>
                 <td className="px-5 py-4">{item.report.flowIntel?.competitors.length ? `${item.report.flowIntel.competitors.length} / ${item.report.flowIntel.competitors[0]?.name}` : "No strong public signals"}</td><td className="px-5 py-4">{item.report.flowEvents?.opportunities.length ? `${item.report.flowEvents.opportunities.length} / ${item.report.flowEvents.opportunities[0]?.title}` : "Legacy"}</td>
-                <td className="px-5 py-4">{item.report.flowEvents?.opportunities[0]?.evidenceLevel ? <Badge variant="outline">{evidenceLabel(item.report.flowEvents.opportunities[0].evidenceLevel)}</Badge> : "Legacy"}</td>
+                <td className="px-5 py-4">{item.report.evidenceSources?.length ? (() => { const counts = evidenceCounts(item); return <div className="flex flex-wrap gap-1"><Badge variant="teal">V {counts.verified}</Badge><Badge variant="outline">N {counts.nearby}</Badge><Badge variant="secondary">E {counts.estimated}</Badge><Badge variant="secondary">L {counts.low}</Badge></div>; })() : item.report.flowEvents?.opportunities[0]?.evidenceLevel ? <Badge variant="outline">{evidenceLabel(item.report.flowEvents.opportunities[0].evidenceLevel)}</Badge> : "Legacy"}</td>
                 <td className="px-5 py-4">{item.report.nearbyExpansion?.usedNearbyExpansion ? <Badge variant="outline">{item.report.nearbyExpansion.recommendations[0]?.city ?? "Used"}</Badge> : "No"}</td>
                 <td className="px-5 py-4">{item.report.qualityControl?.applied ? `${item.report.qualityControl.suppressed.length} suppressed / ${item.report.qualityControl.qualityNotes.length} notes` : "Legacy"}</td><td className="px-5 py-4"><Button variant="outline" size="sm" onClick={() => setReviewing(item)}>Review Accuracy</Button>{feedbackByReport[item.id]?.length ? <p className="mt-2 text-xs text-muted-foreground">{feedbackByReport[item.id].length} review(s)</p> : null}</td>
                 <td className="px-5 py-4 text-muted-foreground">{formatDate(item.createdAt)}</td>
@@ -494,7 +519,7 @@ function ReportTable({
             <div className="grid gap-2 text-sm text-muted-foreground">
               <p><span className="font-semibold text-foreground">Score:</span> {item.report.scores?.finalScore ? `${item.report.scores.finalScore}/100` : "Legacy report"}</p>
               <p><span className="font-semibold text-foreground">FlowEvents:</span> {item.report.flowEvents?.opportunities.length ? `${item.report.flowEvents.opportunities.length} leads, top: ${item.report.flowEvents.opportunities[0]?.title}` : "Legacy report"}</p>
-              <p><span className="font-semibold text-foreground">Top evidence:</span> {evidenceLabel(item.report.flowEvents?.opportunities[0]?.evidenceLevel)}</p>
+              <p><span className="font-semibold text-foreground">Evidence:</span> {item.report.evidenceSources?.length ? (() => { const counts = evidenceCounts(item); return `${counts.verified} verified / ${counts.estimated} estimated / ${counts.low} low`; })() : evidenceLabel(item.report.flowEvents?.opportunities[0]?.evidenceLevel)}</p>
               <p><span className="font-semibold text-foreground">Nearby expansion:</span> {item.report.nearbyExpansion?.usedNearbyExpansion ? item.report.nearbyExpansion.recommendations.map((rec) => rec.city).join(", ") : "No"}</p><p><span className="font-semibold text-foreground">Quality:</span> {item.report.qualityControl?.applied ? `${item.report.qualityControl.suppressed.length} suppressed / ${item.report.qualityControl.qualityNotes.length} notes` : "Legacy"}</p>
             </div>
             <Button variant="outline" size="sm" className="mt-4" onClick={() => setReviewing(item)}>Review Accuracy</Button>

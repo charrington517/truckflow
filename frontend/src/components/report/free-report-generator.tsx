@@ -3,13 +3,13 @@
 import dynamic from "next/dynamic";
 import { FormEvent, useState } from "react";
 import { motion } from "framer-motion";
-import { AlertTriangle, Brain, CalendarClock, ChefHat, CheckCircle2, ExternalLink, Loader2, LockKeyhole, MapPinned, Radar, Ticket, TrendingUp } from "lucide-react";
+import { AlertTriangle, Brain, CalendarClock, ChefHat, CheckCircle2, ExternalLink, Loader2, LockKeyhole, MapPinned, Radar, ShieldCheck, Ticket, TrendingUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { generateFreeReport, joinWaitlist } from "@/lib/api";
-import type { FreeReport, LocalDataMapResult } from "@/types/report";
+import type { EvidenceSource, FreeReport, LocalDataMapResult } from "@/types/report";
 
 const LocalOpportunityMap = dynamic(() => import("@/components/map/local-opportunity-map").then((mod) => mod.LocalOpportunityMap), {
   ssr: false,
@@ -276,8 +276,49 @@ function LocalMarketSignals({ report }: { report: FreeReport }) {
 function evidenceBadgeLabel(level?: string) {
   if (level === "verified") return "Verified";
   if (level === "nearby") return "Nearby";
-  if (level === "model") return "Estimate";
+  if (level === "model" || level === "estimated") return "Estimate";
+  if (level === "low") return "Low Confidence";
   return "Needs Verification";
+}
+
+function sourceTypeLabel(value?: string) {
+  if (value === "openstreetmap") return "OpenStreetMap";
+  if (value === "firecrawl") return "Live Web";
+  if (value === "manual_admin") return "Manual Admin";
+  if (value === "user_submitted") return "User Submitted";
+  return "Model Estimate";
+}
+
+function formatSourceDate(value?: string) {
+  if (!value) return "Not recorded";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Not recorded";
+  return new Intl.DateTimeFormat("en", { month: "short", day: "numeric", year: "numeric" }).format(date);
+}
+
+function sourceVariant(confidence?: string) {
+  if (confidence === "verified") return "teal" as const;
+  if (confidence === "nearby") return "outline" as const;
+  return "secondary" as const;
+}
+
+function sourcesById(report: FreeReport) {
+  return Object.fromEntries((report.evidenceSources ?? []).map((source) => [source.id, source]));
+}
+
+function CitationChips({ ids, report }: { ids?: string[]; report: FreeReport }) {
+  const sourceMap = sourcesById(report);
+  const sources = (ids ?? []).map((id) => sourceMap[id]).filter(Boolean).slice(0, 3) as EvidenceSource[];
+  if (!sources.length) return null;
+  return (
+    <div className="mt-3 flex flex-wrap gap-2">
+      {sources.map((source) => (
+        <Badge key={source.id} variant={sourceVariant(source.confidence)}>
+          {sourceTypeLabel(source.sourceType)} � {evidenceBadgeLabel(source.confidence)}
+        </Badge>
+      ))}
+    </div>
+  );
 }
 
 function EvidenceNotes({ notes }: { notes?: string[] }) {
@@ -287,6 +328,60 @@ function EvidenceNotes({ notes }: { notes?: string[] }) {
     <ul className="mt-3 grid gap-1 text-xs leading-5 text-muted-foreground">
       {notes.slice(0, 3).map((note) => <li key={note}>- {note}</li>)}
     </ul>
+  );
+}
+
+function EvidenceSourcesSection({ report }: { report: FreeReport }) {
+  const sources = report.evidenceSources ?? [];
+  if (!sources.length) return null;
+  const groups = [
+    { key: "verified", label: "Verified" },
+    { key: "nearby", label: "Nearby" },
+    { key: "estimated", label: "Estimated" },
+    { key: "low", label: "Low Confidence" }
+  ] as const;
+
+  return (
+    <div className="mt-5 rounded-lg border border-primary/20 bg-background/60 p-5 dark:bg-black/20">
+      <div className="mb-4 flex flex-col justify-between gap-3 md:flex-row md:items-start">
+        <div>
+          <div className="mb-2 flex items-center gap-2">
+            <ShieldCheck className="h-4 w-4 text-primary" />
+            <p className="font-semibold">Evidence & Sources</p>
+          </div>
+          <p className="text-sm leading-6 text-muted-foreground">TruckFlow separates verified, nearby, estimated, and low-confidence inputs so you can see what needs field verification.</p>
+        </div>
+        <Badge variant="outline">{sources.length} sources</Badge>
+      </div>
+      <div className="grid gap-4 md:grid-cols-2">
+        {groups.map((group) => {
+          const groupSources = sources.filter((source) => source.confidence === group.key);
+          if (!groupSources.length) return null;
+          return (
+            <div key={group.key} className="rounded-md border border-border bg-card p-4">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground">{group.label}</p>
+                <Badge variant={sourceVariant(group.key)}>{groupSources.length}</Badge>
+              </div>
+              <div className="grid gap-3">
+                {groupSources.slice(0, 5).map((source) => (
+                  <div key={source.id} className="rounded-md border border-border bg-background/60 p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold">{source.label}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">{sourceTypeLabel(source.sourceType)} � Checked {formatSourceDate(source.lastCheckedAt)}</p>
+                      </div>
+                      {source.url ? <a href={source.url} target="_blank" rel="noreferrer" className="shrink-0 text-primary"><ExternalLink className="h-4 w-4" /></a> : null}
+                    </div>
+                    {source.notes ? <p className="mt-2 line-clamp-2 text-xs leading-5 text-muted-foreground">{source.notes}</p> : null}
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -338,6 +433,11 @@ function FlowEventsSection({ report }: { report: FreeReport }) {
             </div>
             <p className="text-sm leading-6 text-muted-foreground">{opportunity.reason}</p>
             <p className="mt-3 text-sm"><span className="font-semibold">Action:</span> {opportunity.suggestedAction}</p>
+            <CitationChips ids={opportunity.evidenceSourceIds} report={report} />
+            <details className="mt-3 rounded-md border border-border bg-secondary/20 p-3 text-xs text-muted-foreground">
+              <summary className="cursor-pointer font-semibold text-foreground">View evidence</summary>
+              <EvidenceNotes notes={opportunity.evidenceNotes} />
+            </details>
             {opportunity.url ? (
               <a href={opportunity.url} target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-primary">
                 Open source <ExternalLink className="h-3.5 w-3.5" />
@@ -391,6 +491,8 @@ function NearbyMarketExpansion({ report }: { report: FreeReport }) {
               ))}
             </div>
             <p className="mt-3 text-sm"><span className="font-semibold">Action:</span> {recommendation.recommendation}</p>
+            <CitationChips ids={recommendation.evidenceSourceIds} report={report} />
+            <EvidenceNotes notes={recommendation.evidenceNotes} />
           </article>
         ))}
       </div>
@@ -464,6 +566,8 @@ function FlowIntelSection({ report }: { report: FreeReport }) {
                 <Badge variant="secondary">{competitor.confidence || "unknown"}</Badge>
               </div>
               <p className="text-sm leading-6 text-muted-foreground">{competitor.notes || "Public competitor signal needs verification."}</p>
+              <CitationChips ids={competitor.evidenceSourceIds} report={report} />
+              <p className="mt-2 text-xs text-muted-foreground">Last checked: {formatSourceDate(competitor.lastVerifiedAt)}</p>
             </article>
           ))}
         </div>
@@ -598,12 +702,15 @@ function StrategyBrief({ report }: { report: FreeReport }) {
 function ReportResult({ report }: { report: FreeReport }) {
   const cards = [
     {
-      title: "Best Spot Today",
+      title: "Best Modeled Opportunity",
       icon: MapPinned,
       badge: `${report.bestSpot.score}/100`,
       primary: report.bestSpot.name,
       meta: report.bestSpot.timeWindow,
-      body: report.bestSpot.reason
+      body: report.bestSpot.reason,
+      evidenceSourceIds: report.bestSpot.evidenceSourceIds,
+      evidenceNotes: report.bestSpot.evidenceNotes,
+      evidenceLevel: report.bestSpot.evidenceLevel
     },
     {
       title: "Menu Opportunity",
@@ -611,7 +718,10 @@ function ReportResult({ report }: { report: FreeReport }) {
       badge: `${report.menuOpportunity.confidence}% confidence`,
       primary: report.menuOpportunity.item,
       meta: report.foodType,
-      body: report.menuOpportunity.reason
+      body: report.menuOpportunity.reason,
+      evidenceSourceIds: report.menuOpportunity.evidenceSourceIds,
+      evidenceNotes: report.menuOpportunity.evidenceNotes,
+      evidenceLevel: report.menuOpportunity.evidenceLevel
     },
     {
       title: "Event Opportunity",
@@ -619,7 +729,10 @@ function ReportResult({ report }: { report: FreeReport }) {
       badge: report.eventOpportunity.status,
       primary: report.eventOpportunity.name,
       meta: report.city,
-      body: report.eventOpportunity.reason
+      body: report.eventOpportunity.reason,
+      evidenceSourceIds: report.eventOpportunity.evidenceSourceIds,
+      evidenceNotes: report.eventOpportunity.evidenceNotes,
+      evidenceLevel: report.eventOpportunity.evidenceLevel
     },
     {
       title: "Revenue Boost",
@@ -627,7 +740,10 @@ function ReportResult({ report }: { report: FreeReport }) {
       badge: report.boostIdea.expectedLift,
       primary: report.boostIdea.promo,
       meta: "Slow-day lift strategy",
-      body: "Package the offer around speed, certainty, and a clear lunch value signal."
+      body: "Package the offer around speed, certainty, and a clear lunch value signal.",
+      evidenceSourceIds: report.boostIdea.evidenceSourceIds,
+      evidenceNotes: report.boostIdea.evidenceNotes,
+      evidenceLevel: report.boostIdea.evidenceLevel
     }
   ];
 
@@ -652,6 +768,7 @@ function ReportResult({ report }: { report: FreeReport }) {
       <FlowEventsSection report={report} />
       <FlowIntelSection report={report} />
       <QualityChecks report={report} />
+      <EvidenceSourcesSection report={report} />
       <AccuracyDisclaimer />
       <div className="grid gap-4 md:grid-cols-2">
         {cards.map((card, index) => {
@@ -674,6 +791,8 @@ function ReportResult({ report }: { report: FreeReport }) {
               <h4 className="mt-2 text-xl font-black">{card.primary}</h4>
               <p className="mt-1 text-sm text-primary">{card.meta}</p>
               <p className="mt-3 text-sm leading-6 text-muted-foreground">{card.body}</p>
+              <CitationChips ids={card.evidenceSourceIds} report={report} />
+              <EvidenceNotes notes={card.evidenceNotes} />
             </motion.article>
           );
         })}

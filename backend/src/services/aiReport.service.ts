@@ -65,7 +65,7 @@ export async function generateAiNarrative(input: {
       temperature: 0.35,
       max_output_tokens: 900,
       instructions:
-        "You advise food truck operators. Base conclusions only on the supplied scoring and research data. Say when data is limited. Do not invent permits, events, competitors, prices, revenue guarantees, or fake statistics. Avoid guaranteed/definitely/you will make. Keep advice practical, plain-English, and actionable.",
+        "You advise food truck operators. Base conclusions only on the supplied scoring, research, and evidence source data. Cite confidence levels in plain language when useful. Do not treat estimates as verified facts. Say when data is limited. Do not invent source details, permits, events, competitors, prices, revenue guarantees, or fake statistics. Avoid guaranteed/definitely/you will make. Keep advice practical, plain-English, and actionable.",
       input: JSON.stringify({
         city: input.city,
         foodType: input.foodType,

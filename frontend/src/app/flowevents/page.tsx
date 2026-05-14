@@ -25,6 +25,18 @@ function evidenceBadgeLabel(level?: string) {
   return "Needs Verification";
 }
 
+function EvidenceNotes({ notes }: { notes?: string[] }) {
+  if (!notes?.length) return null;
+  return (
+    <details className="mt-4 rounded-md border border-border bg-secondary/20 p-3 text-xs text-muted-foreground">
+      <summary className="cursor-pointer font-semibold text-foreground">View evidence</summary>
+      <ul className="mt-3 grid gap-1 leading-5">
+        {notes.slice(0, 4).map((note) => <li key={note}>- {note}</li>)}
+      </ul>
+    </details>
+  );
+}
+
 export default function FlowEventsPage() {
   const [city, setCity] = useState("Portland, OR");
   const [foodType, setFoodType] = useState("Tacos");
@@ -154,6 +166,7 @@ export default function FlowEventsPage() {
                     <div className="mt-4 rounded-md border border-border bg-secondary/30 p-3 text-sm">
                       <span className="font-semibold">Suggested action:</span> {opportunity.suggestedAction}
                     </div>
+                    <EvidenceNotes notes={opportunity.evidenceNotes} />
                     {opportunity.url ? (
                       <a href={opportunity.url} target="_blank" rel="noreferrer" className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-primary">
                         Open source <ExternalLink className="h-3.5 w-3.5" />

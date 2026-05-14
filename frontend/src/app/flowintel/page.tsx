@@ -102,6 +102,7 @@ export default function FlowIntelPage() {
                         <Badge variant="outline">{competitor.source || "unknown source"}</Badge>
                       </div>
                       <p className="text-sm leading-6 text-muted-foreground">{competitor.notes || "Public signal needs manual verification."}</p>
+                      <p className="mt-2 text-xs text-muted-foreground">Last checked: {competitor.lastVerifiedAt ? new Date(competitor.lastVerifiedAt).toLocaleDateString() : "Not recorded"}</p>
                       {competitor.url ? <a className="mt-3 inline-flex text-sm font-semibold text-primary" href={competitor.url} target="_blank" rel="noreferrer">Open source</a> : null}
                     </article>
                   ))}

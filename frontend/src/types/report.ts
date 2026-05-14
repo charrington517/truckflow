@@ -1,5 +1,15 @@
 export type EvidenceLevel = "verified" | "nearby" | "model" | "low_confidence";
 
+export type EvidenceSource = {
+  id: string;
+  label: string;
+  url?: string;
+  sourceType: "openstreetmap" | "firecrawl" | "manual_admin" | "model_estimate" | "user_submitted";
+  confidence: "verified" | "nearby" | "estimated" | "low";
+  lastCheckedAt?: string;
+  notes?: string;
+};
+
 export type OsmQueryType =
   | "brewery"
   | "restaurant"
@@ -17,6 +27,7 @@ export type LocalDataPlace = {
   longitude: number;
   tags: Record<string, string>;
   source: "openstreetmap";
+  evidenceSourceIds?: string[];
 };
 
 export type LocalDataCheck = {
@@ -24,6 +35,7 @@ export type LocalDataCheck = {
   resultCount: number;
   topPlaces: LocalDataPlace[];
   summary: string;
+  evidenceSourceIds?: string[];
 };
 
 export type LocalDataResult = {
@@ -71,6 +83,7 @@ export type Competitor = {
   createdAt?: string;
   overlapScore?: number;
   url?: string;
+  evidenceSourceIds?: string[];
 };
 
 export type CompetitorInput = Omit<Competitor, "id" | "createdAt" | "overlapScore" | "url">;
@@ -100,6 +113,7 @@ export type NearbyRecommendation = {
   recommendation: string;
   evidenceLevel: EvidenceLevel;
   evidenceNotes: string[];
+  evidenceSourceIds?: string[];
 };
 
 export type NearbyExpansionResult = {
@@ -153,6 +167,7 @@ export type FlowEventOpportunity = {
   source: "model" | "firecrawl";
   evidenceLevel: EvidenceLevel;
   evidenceNotes: string[];
+  evidenceSourceIds?: string[];
   url?: string;
 };
 
@@ -182,6 +197,7 @@ export type FreeReport = {
     score: number;
     evidenceLevel?: EvidenceLevel;
     evidenceNotes?: string[];
+    evidenceSourceIds?: string[];
   };
   menuOpportunity: {
     item: string;
@@ -189,6 +205,7 @@ export type FreeReport = {
     confidence: number;
     evidenceLevel?: EvidenceLevel;
     evidenceNotes?: string[];
+    evidenceSourceIds?: string[];
   };
   eventOpportunity: {
     name: string;
@@ -196,12 +213,14 @@ export type FreeReport = {
     reason: string;
     evidenceLevel?: EvidenceLevel;
     evidenceNotes?: string[];
+    evidenceSourceIds?: string[];
   };
   boostIdea: {
     promo: string;
     expectedLift: string;
     evidenceLevel?: EvidenceLevel;
     evidenceNotes?: string[];
+    evidenceSourceIds?: string[];
   };
   scores?: OpportunityScores;
   summary?: string;
@@ -212,6 +231,7 @@ export type FreeReport = {
   flowEvents?: FlowEventsResult;
   qualityControl?: RecommendationQualityResult;
   flowIntel?: FlowIntelResult;
+  evidenceSources?: EvidenceSource[];
 };
 
 export type ReportActivity = {
