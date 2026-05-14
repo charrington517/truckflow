@@ -122,6 +122,16 @@ export type FlowEventOpportunity = {
   url?: string;
 };
 
+export type RecommendationQualityResult = {
+  applied: true;
+  recommendations: FlowEventOpportunity[];
+  suppressed: Array<{
+    title: string;
+    reason: string;
+  }>;
+  qualityNotes: string[];
+};
+
 export type FlowEventsResult = {
   opportunities: FlowEventOpportunity[];
   summary: string;
@@ -166,6 +176,7 @@ export type FreeReport = {
   nearbyExpansion?: NearbyExpansionResult;
   aiNarrative?: AiNarrative;
   flowEvents?: FlowEventsResult;
+  qualityControl?: RecommendationQualityResult;
 };
 
 export type ReportActivity = {

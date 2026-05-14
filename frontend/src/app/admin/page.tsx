@@ -444,7 +444,7 @@ function ReportTable({
         <table className="w-full text-left text-sm">
           <thead className="border-b border-border bg-secondary/20 text-xs uppercase tracking-[0.18em] text-muted-foreground">
             <tr>
-              <th className="px-5 py-4 font-semibold">Market</th><th className="px-5 py-4 font-semibold">Score</th><th className="px-5 py-4 font-semibold">Research</th><th className="px-5 py-4 font-semibold">FlowEvents</th><th className="px-5 py-4 font-semibold">Evidence</th><th className="px-5 py-4 font-semibold">Nearby</th><th className="px-5 py-4 font-semibold">Accuracy</th><th className="px-5 py-4 font-semibold">Created</th>
+              <th className="px-5 py-4 font-semibold">Market</th><th className="px-5 py-4 font-semibold">Score</th><th className="px-5 py-4 font-semibold">Research</th><th className="px-5 py-4 font-semibold">FlowEvents</th><th className="px-5 py-4 font-semibold">Evidence</th><th className="px-5 py-4 font-semibold">Nearby</th><th className="px-5 py-4 font-semibold">Quality</th><th className="px-5 py-4 font-semibold">Accuracy</th><th className="px-5 py-4 font-semibold">Created</th>
             </tr>
           </thead>
           <tbody>
@@ -456,7 +456,7 @@ function ReportTable({
                 <td className="px-5 py-4">{item.report.flowEvents?.opportunities.length ? `${item.report.flowEvents.opportunities.length} / ${item.report.flowEvents.opportunities[0]?.title}` : "Legacy"}</td>
                 <td className="px-5 py-4">{item.report.flowEvents?.opportunities[0]?.evidenceLevel ? <Badge variant="outline">{evidenceLabel(item.report.flowEvents.opportunities[0].evidenceLevel)}</Badge> : "Legacy"}</td>
                 <td className="px-5 py-4">{item.report.nearbyExpansion?.usedNearbyExpansion ? <Badge variant="outline">{item.report.nearbyExpansion.recommendations[0]?.city ?? "Used"}</Badge> : "No"}</td>
-                <td className="px-5 py-4"><Button variant="outline" size="sm" onClick={() => setReviewing(item)}>Review Accuracy</Button>{feedbackByReport[item.id]?.length ? <p className="mt-2 text-xs text-muted-foreground">{feedbackByReport[item.id].length} review(s)</p> : null}</td>
+                <td className="px-5 py-4">{item.report.qualityControl?.applied ? `${item.report.qualityControl.suppressed.length} suppressed / ${item.report.qualityControl.qualityNotes.length} notes` : "Legacy"}</td><td className="px-5 py-4"><Button variant="outline" size="sm" onClick={() => setReviewing(item)}>Review Accuracy</Button>{feedbackByReport[item.id]?.length ? <p className="mt-2 text-xs text-muted-foreground">{feedbackByReport[item.id].length} review(s)</p> : null}</td>
                 <td className="px-5 py-4 text-muted-foreground">{formatDate(item.createdAt)}</td>
               </tr>
             ))}
@@ -471,7 +471,7 @@ function ReportTable({
               <p><span className="font-semibold text-foreground">Score:</span> {item.report.scores?.finalScore ? `${item.report.scores.finalScore}/100` : "Legacy report"}</p>
               <p><span className="font-semibold text-foreground">FlowEvents:</span> {item.report.flowEvents?.opportunities.length ? `${item.report.flowEvents.opportunities.length} leads, top: ${item.report.flowEvents.opportunities[0]?.title}` : "Legacy report"}</p>
               <p><span className="font-semibold text-foreground">Top evidence:</span> {evidenceLabel(item.report.flowEvents?.opportunities[0]?.evidenceLevel)}</p>
-              <p><span className="font-semibold text-foreground">Nearby expansion:</span> {item.report.nearbyExpansion?.usedNearbyExpansion ? item.report.nearbyExpansion.recommendations.map((rec) => rec.city).join(", ") : "No"}</p>
+              <p><span className="font-semibold text-foreground">Nearby expansion:</span> {item.report.nearbyExpansion?.usedNearbyExpansion ? item.report.nearbyExpansion.recommendations.map((rec) => rec.city).join(", ") : "No"}</p><p><span className="font-semibold text-foreground">Quality:</span> {item.report.qualityControl?.applied ? `${item.report.qualityControl.suppressed.length} suppressed / ${item.report.qualityControl.qualityNotes.length} notes` : "Legacy"}</p>
             </div>
             <Button variant="outline" size="sm" className="mt-4" onClick={() => setReviewing(item)}>Review Accuracy</Button>
           </article>

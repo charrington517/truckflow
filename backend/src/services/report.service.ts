@@ -3,7 +3,9 @@ import { generateAiNarrative } from "./aiReport.service";
 import { generateEventOpportunities } from "./events.service";
 import { researchLocalMarket } from "./firecrawl.service";
 import { getLocalDataChecks } from "./osm.service";
+import { filterRecommendations } from "./recommendationQuality.service";
 import { suggestNearbyOpportunities } from "./nearbyMarkets.service";
+import { getReportFeedback } from "./reportFeedback.service";
 import { generateOpportunityReport } from "./scoring.service";
 import { getDb } from "./db.service";
 import type { FreeReportRequest, ReportActivity } from "../types/truckflow";
@@ -34,6 +36,18 @@ export async function createFreeReport(
     localData,
     nearbyExpansion,
   });
+
+  const qualityControl = filterRecommendations({
+    city: input.city,
+    foodType: input.foodType,
+    recommendations: report.flowEvents.opportunities,
+    localData,
+    nearbyExpansion,
+    feedback: getReportFeedback(),
+  });
+
+  report.flowEvents.opportunities = qualityControl.recommendations;
+  report.qualityControl = qualityControl;
 
   report.aiNarrative = await generateAiNarrative({
     city: input.city,

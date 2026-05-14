@@ -427,6 +427,41 @@ function LocalDataChecks({ report }: { report: FreeReport }) {
   );
 }
 
+function QualityChecks({ report }: { report: FreeReport }) {
+  const quality = report.qualityControl;
+  if (!quality?.applied) return null;
+
+  return (
+    <div className="mt-5 rounded-lg border border-border bg-secondary/25 p-5">
+      <div className="mb-3 flex flex-col justify-between gap-3 md:flex-row md:items-start">
+        <div>
+          <p className="font-semibold">Quality Checks</p>
+          <p className="mt-1 text-sm leading-6 text-muted-foreground">
+            TruckFlow reviews low-confidence recommendations before showing this report.
+          </p>
+        </div>
+        <Badge variant="outline">{quality.suppressed.length} removed</Badge>
+      </div>
+      <div className="grid gap-3 md:grid-cols-2">
+        {quality.suppressed.length ? (
+          <div className="rounded-md border border-border bg-card p-4">
+            <p className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground">Suppressed</p>
+            <div className="grid gap-2 text-sm text-muted-foreground">
+              {quality.suppressed.slice(0, 3).map((item) => <p key={item.title}>{item.title}: {item.reason}</p>)}
+            </div>
+          </div>
+        ) : null}
+        <div className="rounded-md border border-border bg-card p-4">
+          <p className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground">Notes</p>
+          <div className="grid gap-2 text-sm text-muted-foreground">
+            {quality.qualityNotes.slice(0, 4).map((note) => <p key={note}>{note}</p>)}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function StrategyBrief({ report }: { report: FreeReport }) {
   const narrative = report.aiNarrative;
 
@@ -533,7 +568,9 @@ function ReportResult({ report }: { report: FreeReport }) {
       <ScoreBreakdown report={report} />
       <LocalMarketSignals report={report} />
       <StrategyBrief report={report} />
-      <FlowEventsSection report={report} />\n      <AccuracyDisclaimer />
+      <FlowEventsSection report={report} />
+      <QualityChecks report={report} />
+      <AccuracyDisclaimer />
       <div className="grid gap-4 md:grid-cols-2">
         {cards.map((card, index) => {
           const Icon = card.icon;
